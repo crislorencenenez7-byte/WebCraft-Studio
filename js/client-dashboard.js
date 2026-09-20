@@ -1,12 +1,4 @@
-/* =========================================================
-   WEBCRAFT STUDIO
-   CLIENT DASHBOARD
-   ========================================================= */
-
 import { firebaseConfig } from "./firebase-config.js";
-
-
-/* FIREBASE APP */
 
 import {
   initializeApp,
@@ -14,17 +6,11 @@ import {
   getApp
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 
-
-/* FIREBASE AUTH */
-
 import {
   getAuth,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-
-
-/* FIRESTORE */
 
 import {
   getFirestore,
@@ -37,90 +23,62 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 
-/* =========================================================
-   INITIALIZE FIREBASE
-   ========================================================= */
+/* =========================================
+   FIREBASE
+========================================= */
 
 const app = getApps().length
   ? getApp()
   : initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
-
 const db = getFirestore(app);
 
 
-/* =========================================================
-   HTML ELEMENTS
-   ========================================================= */
+/* =========================================
+   ELEMENTS
+========================================= */
 
-const clientName =
-  document.getElementById("clientName");
+const clientName = document.getElementById("clientName");
+const clientEmail = document.getElementById("clientEmail");
 
-const clientEmail =
-  document.getElementById("clientEmail");
+const loadingState = document.getElementById("loadingState");
+const errorState = document.getElementById("errorState");
+const emptyState = document.getElementById("emptyState");
+const projectList = document.getElementById("projectList");
 
-const loadingState =
-  document.getElementById("loadingState");
-
-const errorState =
-  document.getElementById("errorState");
-
-const emptyState =
-  document.getElementById("emptyState");
-
-const projectList =
-  document.getElementById("projectList");
-
-const logoutButton =
-  document.getElementById("logout");
+const logoutButton = document.getElementById("logout");
 
 
-/* =========================================================
-   SHOW / HIDE
-   ========================================================= */
+/* =========================================
+   HELPERS
+========================================= */
 
-function show(element) {
+function show(el) {
+  if (!el) return;
 
-  if (!element) return;
-
-  element.classList.remove("hidden");
-
-  element.style.display = "";
-
+  el.classList.remove("hidden");
+  el.style.display = "";
 }
 
 
-function hide(element) {
+function hide(el) {
+  if (!el) return;
 
-  if (!element) return;
-
-  element.classList.add("hidden");
-
-  element.style.display = "none";
-
+  el.classList.add("hidden");
+  el.style.display = "none";
 }
 
-
-/* =========================================================
-   SECURITY
-   ========================================================= */
 
 function escapeHTML(value) {
-
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-
 }
 
-
-/* =========================================================
-   DATE
-   ========================================================= */
 
 function formatDate(value) {
 
@@ -130,91 +88,55 @@ function formatDate(value) {
 
   try {
 
-    let date;
-
-    if (
-      value &&
+    const date =
       typeof value.toDate === "function"
-    ) {
-
-      date = value.toDate();
-
-    } else {
-
-      date = new Date(value);
-
-    }
+        ? value.toDate()
+        : new Date(value);
 
     if (isNaN(date.getTime())) {
       return "No date";
     }
 
-    return date.toLocaleDateString(
-      "en-PH",
-      {
-        year: "numeric",
-        month: "short",
-        day: "numeric"
-      }
-    );
+    return date.toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    });
 
   } catch {
 
     return "No date";
 
   }
-
 }
 
 
-/* =========================================================
-   STATUS
-   ========================================================= */
-
-function getStatusClass(status) {
+function statusClass(status) {
 
   const value =
     String(status || "Pending")
       .toLowerCase()
       .trim();
 
-
-  if (value === "completed") {
-
+  if (value === "completed")
     return "status-completed";
 
-  }
-
-
-  if (value === "coding") {
-
+  if (value === "coding")
     return "status-coding";
 
-  }
-
-
-  if (value === "review") {
-
+  if (value === "review")
     return "status-review";
 
-  }
-
-
-  if (value === "pending") {
-
+  if (value === "pending")
     return "status-pending";
 
-  }
-
-
   return "status-default";
-
 }
 
 
-/* =========================================================
-   DISPLAY USER
-   ========================================================= */
+/* =========================================
+   USER DISPLAY
+========================================= */
 
 function displayUser(user) {
 
@@ -227,7 +149,6 @@ function displayUser(user) {
 
   }
 
-
   if (clientEmail) {
 
     clientEmail.textContent =
@@ -238,123 +159,101 @@ function displayUser(user) {
 }
 
 
-/* =========================================================
-   ADD ADMIN BUTTON
-   ========================================================= */
+/* =========================================
+   ADMIN LINK
+========================================= */
 
 function addAdminLink() {
 
   const nav =
     document.querySelector("header nav");
 
-
-  if (!nav) {
-    return;
-  }
-
+  if (!nav) return;
 
   if (
     document.getElementById(
       "adminDashboardLink"
     )
   ) {
-
     return;
-
   }
 
-
-  const adminLink =
+  const link =
     document.createElement("a");
 
-
-  adminLink.id =
+  link.id =
     "adminDashboardLink";
 
-
-  adminLink.href =
+  link.href =
     "../admin/dashboard.html";
 
-
-  adminLink.textContent =
+  link.textContent =
     "Admin Dashboard";
-
 
   if (logoutButton) {
 
     nav.insertBefore(
-      adminLink,
+      link,
       logoutButton
     );
 
   } else {
 
-    nav.appendChild(
-      adminLink
-    );
+    nav.appendChild(link);
 
   }
 
 }
 
 
-/* =========================================================
-   CHECK ADMIN ROLE
-   ========================================================= */
+/* =========================================
+   CHECK ROLE
+========================================= */
 
-async function checkUserRole(user) {
+async function checkRole(user) {
 
   try {
 
     const userRef =
-      doc(
-        db,
-        "users",
-        user.uid
-      );
+      doc(db, "users", user.uid);
 
-
-    const userSnapshot =
+    const snap =
       await getDoc(userRef);
 
-
-    if (!userSnapshot.exists()) {
+    if (!snap.exists()) {
 
       console.warn(
-        "User document does not exist."
+        "users/" + user.uid +
+        " does not exist."
       );
 
       return;
 
     }
 
-
-    const userData =
-      userSnapshot.data();
-
+    const data =
+      snap.data();
 
     console.log(
-      "Current role:",
-      userData.role
+      "USER DOCUMENT:",
+      data
     );
 
+    console.log(
+      "USER ROLE:",
+      data.role
+    );
 
-    if (
-      userData.role === "admin"
-    ) {
+    if (data.role === "admin") {
 
       addAdminLink();
-
-      console.log(
-        "Admin access detected."
-      );
 
     }
 
   } catch (error) {
 
     console.error(
-      "Role check failed:",
+      "ROLE CHECK ERROR:",
       error
     );
 
@@ -363,56 +262,42 @@ async function checkUserRole(user) {
 }
 
 
-/* =========================================================
+/* =========================================
    LOAD PROJECTS
-   ========================================================= */
+========================================= */
 
 async function loadProjects(user) {
 
-  if (!user) {
-    return;
-  }
-
+  hide(errorState);
+  hide(emptyState);
 
   show(loadingState);
 
-  hide(errorState);
-
-  hide(emptyState);
-
-
   if (projectList) {
-
     projectList.innerHTML = "";
-
   }
 
 
+  console.log(
+    "=============================="
+  );
+
+  console.log(
+    "WEBCRAFT PROJECT LOAD"
+  );
+
+  console.log(
+    "Firebase UID:",
+    user.uid
+  );
+
+  console.log(
+    "Email:",
+    user.email
+  );
+
+
   try {
-
-    console.log(
-      "Loading projects..."
-    );
-
-    console.log(
-      "Client UID:",
-      user.uid
-    );
-
-
-    /*
-      IMPORTANT:
-
-      Firestore:
-
-      projects/{projectId}
-
-      must contain:
-
-      clientId:
-      Firebase Authentication UID
-    */
-
 
     const projectsRef =
       collection(
@@ -421,7 +306,14 @@ async function loadProjects(user) {
       );
 
 
-    const projectsQuery =
+    /*
+      IMPORTANT:
+
+      This query does NOT use orderBy().
+      Therefore no composite index is required.
+    */
+
+    const q =
       query(
         projectsRef,
         where(
@@ -432,14 +324,21 @@ async function loadProjects(user) {
       );
 
 
+    console.log(
+      "Running Firestore query..."
+    );
+
+
     const snapshot =
-      await getDocs(
-        projectsQuery
-      );
+      await getDocs(q);
 
 
     console.log(
-      "Projects found:",
+      "Firestore SUCCESS"
+    );
+
+    console.log(
+      "Projects:",
       snapshot.size
     );
 
@@ -447,11 +346,13 @@ async function loadProjects(user) {
     hide(loadingState);
 
 
-    /* NO PROJECTS */
-
     if (snapshot.empty) {
 
       show(emptyState);
+
+      console.log(
+        "No projects found for this UID."
+      );
 
       return;
 
@@ -461,45 +362,37 @@ async function loadProjects(user) {
     const projects = [];
 
 
-    /* GET PROJECTS */
-
     snapshot.forEach(
       (projectDoc) => {
 
+        const data =
+          projectDoc.data();
+
+        console.log(
+          "PROJECT:",
+          projectDoc.id,
+          data
+        );
+
         projects.push({
-
-          id:
-            projectDoc.id,
-
-          data:
-            projectDoc.data()
-
+          id: projectDoc.id,
+          data
         });
 
       }
     );
 
 
-    /* SORT NEWEST FIRST */
+    /* Sort newest first */
 
     projects.sort(
       (a, b) => {
 
         const aTime =
-          a.data.createdAt &&
-          typeof a.data.createdAt.toMillis ===
-            "function"
-            ? a.data.createdAt.toMillis()
-            : 0;
-
+          a.data.createdAt?.toMillis?.() || 0;
 
         const bTime =
-          b.data.createdAt &&
-          typeof b.data.createdAt.toMillis ===
-            "function"
-            ? b.data.createdAt.toMillis()
-            : 0;
-
+          b.data.createdAt?.toMillis?.() || 0;
 
         return bTime - aTime;
 
@@ -507,133 +400,133 @@ async function loadProjects(user) {
     );
 
 
-    /* =====================================================
-       RENDER PROJECTS
-       ===================================================== */
+    /* Render */
 
-    projects.forEach(
-      (project) => {
+    for (const project of projects) {
 
-        const data =
-          project.data;
+      const data =
+        project.data;
 
+      const title =
+        data.title ||
+        data.projectName ||
+        data.name ||
+        "Untitled Website";
 
-        const title =
-          data.title ||
-          data.projectName ||
-          data.name ||
-          "Untitled Website";
+      const description =
+        data.description ||
+        data.requirements ||
+        "Website project";
 
-
-        const description =
-          data.description ||
-          data.requirements ||
-          "Website project";
-
-
-        const status =
-          data.status ||
-          "Pending";
+      const status =
+        data.status ||
+        "Pending";
 
 
-        const createdAt =
-          data.createdAt ||
-          null;
+      const card =
+        document.createElement("article");
+
+      card.className =
+        "project-card";
 
 
-        const card =
-          document.createElement(
-            "article"
-          );
+      card.innerHTML = `
 
+        <div class="project-card-top">
 
-        card.className =
-          "project-card";
+          <div>
 
+            <h3>
+              ${escapeHTML(title)}
+            </h3>
 
-        card.innerHTML = `
-
-          <div class="project-card-top">
-
-            <div>
-
-              <h3>
-                ${escapeHTML(title)}
-              </h3>
-
-              <p class="project-description">
-                ${escapeHTML(description)}
-              </p>
-
-            </div>
-
-
-            <span
-              class="status-badge ${getStatusClass(status)}">
-
-              ${escapeHTML(status)}
-
-            </span>
+            <p class="project-description">
+              ${escapeHTML(description)}
+            </p>
 
           </div>
 
+          <span
+            class="status-badge ${statusClass(status)}">
 
-          <div class="project-meta">
+            ${escapeHTML(status)}
 
-            <span>
+          </span>
 
-              Created:
-              ${escapeHTML(
-                formatDate(createdAt)
-              )}
-
-            </span>
-
-          </div>
+        </div>
 
 
-          <div class="project-actions">
+        <div class="project-meta">
 
-            <a
-              class="btn"
-              href="project.html?id=${encodeURIComponent(
-                project.id
-              )}">
+          <span>
+            Created:
+            ${escapeHTML(
+              formatDate(data.createdAt)
+            )}
+          </span>
 
-              Track Project →
-
-            </a>
-
-          </div>
-
-        `;
+        </div>
 
 
-        projectList.appendChild(
-          card
-        );
+        <div class="project-actions">
 
-      }
-    );
+          <a
+            class="btn"
+            href="project.html?id=${encodeURIComponent(
+              project.id
+            )}">
+
+            Track Project →
+
+          </a>
+
+        </div>
+
+      `;
+
+
+      projectList.appendChild(card);
+
+    }
 
 
   } catch (error) {
 
     console.error(
-      "PROJECT LOAD ERROR:",
+      "================================"
+    );
+
+    console.error(
+      "FIRESTORE PROJECT ERROR"
+    );
+
+    console.error(
+      "CODE:",
+      error.code
+    );
+
+    console.error(
+      "MESSAGE:",
+      error.message
+    );
+
+    console.error(
+      "FULL ERROR:",
       error
+    );
+
+    console.error(
+      "================================"
     );
 
 
     hide(loadingState);
-
     hide(emptyState);
-
     show(errorState);
 
 
     let message =
-      "Unable to load projects.";
+      "Unknown Firestore error.";
 
 
     if (
@@ -642,10 +535,9 @@ async function loadProjects(user) {
     ) {
 
       message =
-        "Firestore denied access. Check that clientId matches your Firebase Auth UID.";
+        "PERMISSION DENIED: Firestore Rules rejected this query.";
 
     }
-
 
     else if (
       error.code ===
@@ -653,10 +545,9 @@ async function loadProjects(user) {
     ) {
 
       message =
-        "Firestore reported a configuration or index problem.";
+        "FAILED PRECONDITION: Firestore requires an index or configuration is invalid.";
 
     }
-
 
     else if (
       error.code ===
@@ -668,10 +559,17 @@ async function loadProjects(user) {
 
     }
 
-
     else if (
-      error.message
+      error.code ===
+      "unauthenticated"
     ) {
+
+      message =
+        "Firebase Authentication says you are not signed in.";
+
+    }
+
+    else if (error.message) {
 
       message =
         error.message;
@@ -691,6 +589,11 @@ async function loadProjects(user) {
           ${escapeHTML(message)}
         </p>
 
+        <p class="muted">
+          Error code:
+          ${escapeHTML(error.code || "unknown")}
+        </p>
+
         <button
           class="btn"
           id="retryProjects"
@@ -705,51 +608,31 @@ async function loadProjects(user) {
     `;
 
 
-    const retryButton =
-      document.getElementById(
-        "retryProjects"
-      );
+    document
+      .getElementById("retryProjects")
+      ?.addEventListener(
+        "click",
+        () => {
 
-
-    retryButton?.addEventListener(
-      "click",
-      () => {
-
-        const currentUser =
-          auth.currentUser;
-
-
-        if (currentUser) {
-
-          loadProjects(
-            currentUser
-          );
+          if (auth.currentUser) {
+            loadProjects(auth.currentUser);
+          }
 
         }
-
-      }
-    );
+      );
 
   }
 
 }
 
 
-/* =========================================================
+/* =========================================
    AUTH STATE
-   ========================================================= */
+========================================= */
 
 onAuthStateChanged(
   auth,
   async (user) => {
-
-    console.log(
-      "Auth state:",
-      user
-        ? "Logged in"
-        : "Logged out"
-    );
-
 
     if (!user) {
 
@@ -762,32 +645,26 @@ onAuthStateChanged(
 
 
     console.log(
-      "Firebase UID:",
+      "AUTHENTICATED USER:",
       user.uid
     );
 
 
-    displayUser(
-      user
-    );
+    displayUser(user);
 
 
-    await checkUserRole(
-      user
-    );
+    await checkRole(user);
 
 
-    await loadProjects(
-      user
-    );
+    await loadProjects(user);
 
   }
 );
 
 
-/* =========================================================
+/* =========================================
    LOGOUT
-   ========================================================= */
+========================================= */
 
 if (logoutButton) {
 
@@ -797,25 +674,16 @@ if (logoutButton) {
 
       try {
 
-        await signOut(
-          auth
-        );
-
+        await signOut(auth);
 
         window.location.href =
           "../login.html";
 
-
       } catch (error) {
 
         console.error(
-          "Logout failed:",
+          "LOGOUT ERROR:",
           error
-        );
-
-
-        alert(
-          "Unable to log out. Please try again."
         );
 
       }
