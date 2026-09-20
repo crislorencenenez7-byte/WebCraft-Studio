@@ -34,40 +34,16 @@ const db = getFirestore(app);
 
 
 /* =========================================================
-   DOM HELPERS
+   DOM
 ========================================================= */
 
-const $ = (id) => document.getElementById(id);
-
-const logoutButton =
-  $("logout");
-
-const errorState =
-  $("errorState");
-
-const loadingState =
-  $("loadingState");
+const projectContainer =
+  document.getElementById("project");
 
 
 /* =========================================================
-   BASIC HELPERS
+   HELPERS
 ========================================================= */
-
-function show(element) {
-  if (!element) return;
-
-  element.classList.remove("hidden");
-  element.style.display = "";
-}
-
-
-function hide(element) {
-  if (!element) return;
-
-  element.classList.add("hidden");
-  element.style.display = "none";
-}
-
 
 function escapeHTML(value) {
   return String(value ?? "")
@@ -79,28 +55,17 @@ function escapeHTML(value) {
 }
 
 
-function getDateValue(value) {
+function getDate(value) {
   if (!value) return null;
 
   try {
-    if (
-      typeof value.toDate === "function"
-    ) {
+    if (typeof value.toDate === "function") {
       return value.toDate();
     }
 
-    if (
-      value instanceof Date
-    ) {
-      return value;
-    }
+    const date = new Date(value);
 
-    const date =
-      new Date(value);
-
-    if (
-      isNaN(date.getTime())
-    ) {
+    if (isNaN(date.getTime())) {
       return null;
     }
 
@@ -113,57 +78,26 @@ function getDateValue(value) {
 
 
 function formatDate(value) {
-  const date =
-    getDateValue(value);
+  const date = getDate(value);
 
   if (!date) {
     return "No date";
   }
 
-  return date.toLocaleDateString(
-    "en-PH",
-    {
-      year: "numeric",
-      month: "short",
-      day: "numeric"
-    }
-  );
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
 }
 
 
-function formatDateTime(value) {
-  const date =
-    getDateValue(value);
+function getStatusClass(status) {
 
-  if (!date) {
-    return "No date";
-  }
-
-  return date.toLocaleString(
-    "en-PH",
-    {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit"
-    }
-  );
-}
-
-
-function normalizeStatus(status) {
-  return String(
-    status || "Pending"
-  )
-    .trim()
-    .toLowerCase();
-}
-
-
-function statusClass(status) {
   const value =
-    normalizeStatus(status);
+    String(status || "Pending")
+      .toLowerCase()
+      .trim();
 
   if (value === "completed") {
     return "status-completed";
@@ -186,7 +120,7 @@ function statusClass(status) {
 
 
 /* =========================================================
-   URL PROJECT ID
+   PROJECT ID
 ========================================================= */
 
 function getProjectId() {
@@ -196,23 +130,12 @@ function getProjectId() {
       window.location.search
     );
 
-  const id =
-    params.get("id");
-
-  if (!id) {
-    console.error(
-      "WEBCRAFT: No project ID in URL."
-    );
-
-    return null;
-  }
-
-  return id.trim();
+  return params.get("id")?.trim() || null;
 }
 
 
 /* =========================================================
-   ERROR DISPLAY
+   ERROR
 ========================================================= */
 
 function showError(
@@ -226,16 +149,11 @@ function showError(
     error
   );
 
-  hide(loadingState);
-
-  if (!errorState) {
-    alert(message);
+  if (!projectContainer) {
     return;
   }
 
-  show(errorState);
-
-  errorState.innerHTML = `
+  projectContainer.innerHTML = `
     <div class="error-box">
 
       <strong>
@@ -257,16 +175,6 @@ function showError(
           : ""
       }
 
-      ${
-        error?.message
-          ? `
-            <p class="muted">
-              ${escapeHTML(error.message)}
-            </p>
-          `
-          : ""
-      }
-
       <button
         id="retryProject"
         class="btn"
@@ -277,12 +185,12 @@ function showError(
     </div>
   `;
 
-  $("retryProject")
+  document
+    .getElementById("retryProject")
     ?.addEventListener(
       "click",
       () => {
-        const user =
-          auth.currentUser;
+        const user = auth.currentUser;
 
         if (user) {
           loadProject(user);
@@ -293,61 +201,141 @@ function showError(
 
 
 /* =========================================================
-   FIND ELEMENT BY MULTIPLE POSSIBLE IDS
+   LOADING
 ========================================================= */
 
-function findElement(...ids) {
+function showLoading() {
 
-  for (const id of ids) {
-
-    const element =
-      $(id);
-
-    if (element) {
-      return element;
-    }
+  if (!projectContainer) {
+    return;
   }
 
-  return null;
-}
+  projectContainer.innerHTML = `
+    <div class="loading-state">
 
+      <p class="muted">
+        Loading project...
+      </p>
 
-function setText(
-  ids,
-  value
-) {
-
-  const idList =
-    Array.isArray(ids)
-      ? ids
-      : [ids];
-
-  const element =
-    findElement(...idList);
-
-  if (element) {
-    element.textContent =
-      value ?? "";
-  }
+    </div>
+  `;
 }
 
 
 /* =========================================================
-   RENDER BASIC PROJECT INFO
+   LOAD FILES
 ========================================================= */
 
-function renderProject(
+async function loadFiles(projectId) {
+
+  const filesRef =
+    collection(
+      db,
+      "projects",
+      projectId,
+      "files"
+    );
+
+  const snapshot =
+    await getDocs(filesRef);
+
+  const files = [];
+
+  snapshot.forEach(
+    (fileDoc) => {
+
+      files.push({
+        id: fileDoc.id,
+        data: fileDoc.data()
+      });
+
+    }
+  );
+
+
+  files.sort(
+    (a, b) => {
+
+      const aDate =
+        getDate(a.data.createdAt);
+
+      const bDate =
+        getDate(b.data.createdAt);
+
+      return (
+        (bDate?.getTime() || 0) -
+        (aDate?.getTime() || 0)
+      );
+
+    }
+  );
+
+
+  return files;
+}
+
+
+/* =========================================================
+   LOAD DESIGNS
+========================================================= */
+
+async function loadDesigns(projectId) {
+
+  const designsRef =
+    collection(
+      db,
+      "projects",
+      projectId,
+      "designs"
+    );
+
+  const snapshot =
+    await getDocs(designsRef);
+
+  const designs = [];
+
+  snapshot.forEach(
+    (designDoc) => {
+
+      designs.push({
+        id: designDoc.id,
+        data: designDoc.data()
+      });
+
+    }
+  );
+
+
+  designs.sort(
+    (a, b) => {
+
+      const aDate =
+        getDate(a.data.createdAt);
+
+      const bDate =
+        getDate(b.data.createdAt);
+
+      return (
+        (bDate?.getTime() || 0) -
+        (aDate?.getTime() || 0)
+      );
+
+    }
+  );
+
+
+  return designs;
+}
+
+
+/* =========================================================
+   RENDER PROJECT
+========================================================= */
+
+async function renderProject(
   projectId,
   data
 ) {
-
-  hide(loadingState);
-  hide(errorState);
-
-  /*
-    Support several common IDs so this JS
-    remains compatible with the existing HTML.
-  */
 
   const title =
     data.title ||
@@ -365,505 +353,376 @@ function renderProject(
     data.status ||
     "Pending";
 
-  const clientName =
-    data.clientName ||
-    data.client ||
-    "Client";
 
-  const clientEmail =
-    data.clientEmail ||
-    data.email ||
-    "";
-
-  /* -----------------------------------------
-     TITLE
-  ----------------------------------------- */
-
-  setText(
-    [
-      "projectTitle",
-      "projectName",
-      "title"
-    ],
-    title
-  );
+  let files = [];
+  let designs = [];
 
 
-  /* -----------------------------------------
-     DESCRIPTION / REQUIREMENTS
-  ----------------------------------------- */
+  /*
+    Load subcollections separately.
 
-  setText(
-    [
-      "projectDescription",
-      "projectRequirements",
-      "requirements",
-      "description"
-    ],
-    description
-  );
+    If one fails, the main project can
+    still be displayed.
+  */
 
+  try {
+    files =
+      await loadFiles(projectId);
+  } catch (error) {
 
-  /* -----------------------------------------
-     STATUS
-  ----------------------------------------- */
-
-  const statusElements = [
-    findElement(
-      "projectStatus",
-      "status"
-    )
-  ].filter(Boolean);
-
-  statusElements.forEach(
-    (element) => {
-
-      element.textContent =
-        status;
-
-      element.classList.remove(
-        "status-completed",
-        "status-coding",
-        "status-review",
-        "status-pending",
-        "status-default"
-      );
-
-      element.classList.add(
-        statusClass(status)
-      );
-    }
-  );
-
-
-  /* -----------------------------------------
-     CREATED DATE
-  ----------------------------------------- */
-
-  setText(
-    [
-      "projectCreated",
-      "createdAt",
-      "projectDate",
-      "createdDate"
-    ],
-    formatDate(data.createdAt)
-  );
-
-
-  /* -----------------------------------------
-     CLIENT
-  ----------------------------------------- */
-
-  setText(
-    [
-      "projectClient",
-      "clientName"
-    ],
-    clientName
-  );
-
-
-  setText(
-    [
-      "projectClientEmail",
-      "clientEmail"
-    ],
-    clientEmail
-  );
-
-
-  /* -----------------------------------------
-     PROJECT ID
-  ----------------------------------------- */
-
-  setText(
-    [
-      "projectId",
-      "projectID"
-    ],
-    projectId
-  );
-
-
-  /* -----------------------------------------
-     OPTIONAL STATUS TIMESTAMPS
-  ----------------------------------------- */
-
-  setText(
-    [
-      "updatedAt",
-      "projectUpdated"
-    ],
-    formatDateTime(data.updatedAt)
-  );
-
-
-  /* -----------------------------------------
-     BODY DATA ATTRIBUTE
-  ----------------------------------------- */
-
-  document.body.dataset.projectId =
-    projectId;
-
-
-  document.body.dataset.projectStatus =
-    status;
-
-
-  console.log(
-    "WEBCRAFT PROJECT LOADED:",
-    {
-      id: projectId,
-      title,
-      status,
-      clientId: data.clientId
-    }
-  );
-}
-
-
-/* =========================================================
-   LOAD PROJECT FILES
-========================================================= */
-
-async function loadProjectFiles(
-  projectId
-) {
-
-  const container =
-    findElement(
-      "projectFiles",
-      "filesList",
-      "fileList",
-      "files"
+    console.warn(
+      "Unable to load files:",
+      error
     );
 
-  if (!container) {
+  }
+
+
+  try {
+    designs =
+      await loadDesigns(projectId);
+  } catch (error) {
+
+    console.warn(
+      "Unable to load designs:",
+      error
+    );
+
+  }
+
+
+  if (!projectContainer) {
     return;
   }
 
-  container.innerHTML = `
-    <p class="muted">
-      Loading files...
-    </p>
-  `;
 
-  try {
+  /* =======================================================
+     FILES HTML
+  ======================================================= */
 
-    const filesRef =
-      collection(
-        db,
-        "projects",
-        projectId,
-        "files"
-      );
+  let filesHTML = "";
 
-    /*
-      IMPORTANT:
-      No orderBy() here.
-      Therefore this does NOT require
-      a Firestore index.
-    */
+  if (files.length === 0) {
 
-    const snapshot =
-      await getDocs(
-        filesRef
-      );
+    filesHTML = `
+      <p class="muted">
+        No files have been delivered yet.
+      </p>
+    `;
 
-    if (snapshot.empty) {
+  } else {
 
-      container.innerHTML = `
-        <p class="muted">
-          No files have been delivered yet.
-        </p>
-      `;
-
-      return;
-    }
-
-
-    const files = [];
-
-    snapshot.forEach(
-      (fileDoc) => {
-
-        files.push({
-          id: fileDoc.id,
-          data: fileDoc.data()
-        });
-
-      }
-    );
-
-
-    files.sort(
-      (a, b) => {
-
-        const aTime =
-          getDateValue(
-            a.data.createdAt
-          )?.getTime() || 0;
-
-        const bTime =
-          getDateValue(
-            b.data.createdAt
-          )?.getTime() || 0;
-
-        return bTime - aTime;
-      }
-    );
-
-
-    container.innerHTML =
+    filesHTML =
       files
-        .map(
-          (file) => {
+        .map((file) => {
 
-            const data =
-              file.data;
+          const fileData =
+            file.data;
 
-            const name =
-              data.name ||
-              data.fileName ||
-              data.filename ||
-              "Website File";
+          const fileName =
+            fileData.name ||
+            fileData.fileName ||
+            fileData.filename ||
+            "Website File";
 
-            const url =
-              data.url ||
-              data.downloadURL ||
-              data.downloadUrl ||
-              data.href ||
-              "";
+          const fileURL =
+            fileData.url ||
+            fileData.downloadURL ||
+            fileData.downloadUrl ||
+            fileData.href ||
+            "";
 
 
-            return `
-              <div class="project-file">
+          return `
+            <div class="project-file"
+              style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:16px;
+                padding:14px 0;
+                border-bottom:1px solid rgba(255,255,255,.08);
+              ">
 
-                <div>
-                  <strong>
-                    ${escapeHTML(name)}
-                  </strong>
+              <div>
 
-                  ${
-                    data.createdAt
-                      ? `
-                        <p class="muted">
-                          ${escapeHTML(
-                            formatDate(
-                              data.createdAt
-                            )
-                          )}
-                        </p>
-                      `
-                      : ""
-                  }
-                </div>
+                <strong>
+                  ${escapeHTML(fileName)}
+                </strong>
 
                 ${
-                  url
+                  fileData.createdAt
                     ? `
-                      <a
-                        class="btn"
-                        href="${escapeHTML(url)}"
-                        target="_blank"
-                        rel="noopener">
-                        Open / Download →
-                      </a>
+                      <p class="muted">
+                        ${escapeHTML(
+                          formatDate(
+                            fileData.createdAt
+                          )
+                        )}
+                      </p>
                     `
-                    : `
-                      <span class="muted">
-                        File link unavailable
-                      </span>
-                    `
+                    : ""
                 }
 
               </div>
-            `;
 
-          }
-        )
+              ${
+                fileURL
+                  ? `
+                    <a
+                      class="btn"
+                      href="${escapeHTML(fileURL)}"
+                      target="_blank"
+                      rel="noopener">
+                      Open →
+                    </a>
+                  `
+                  : `
+                    <span class="muted">
+                      No download link
+                    </span>
+                  `
+              }
+
+            </div>
+          `;
+
+        })
         .join("");
 
-  } catch (error) {
+  }
 
-    console.error(
-      "PROJECT FILES ERROR:",
-      error
-    );
 
-    container.innerHTML = `
+  /* =======================================================
+     DESIGNS HTML
+  ======================================================= */
+
+  let designsHTML = "";
+
+  if (designs.length === 0) {
+
+    designsHTML = `
       <p class="muted">
-        Unable to load project files.
+        No designs uploaded yet.
       </p>
     `;
-  }
-}
 
+  } else {
 
-/* =========================================================
-   LOAD PROJECT DESIGNS
-========================================================= */
-
-async function loadProjectDesigns(
-  projectId
-) {
-
-  const container =
-    findElement(
-      "projectDesigns",
-      "designsList",
-      "designList",
-      "designs"
-    );
-
-  if (!container) {
-    return;
-  }
-
-  container.innerHTML = `
-    <p class="muted">
-      Loading designs...
-    </p>
-  `;
-
-
-  try {
-
-    const designsRef =
-      collection(
-        db,
-        "projects",
-        projectId,
-        "designs"
-      );
-
-    /*
-      No orderBy().
-      Sort locally instead.
-    */
-
-    const snapshot =
-      await getDocs(
-        designsRef
-      );
-
-
-    if (snapshot.empty) {
-
-      container.innerHTML = `
-        <p class="muted">
-          No designs uploaded yet.
-        </p>
-      `;
-
-      return;
-    }
-
-
-    const designs = [];
-
-    snapshot.forEach(
-      (designDoc) => {
-
-        designs.push({
-          id: designDoc.id,
-          data: designDoc.data()
-        });
-
-      }
-    );
-
-
-    designs.sort(
-      (a, b) => {
-
-        const aTime =
-          getDateValue(
-            a.data.createdAt
-          )?.getTime() || 0;
-
-        const bTime =
-          getDateValue(
-            b.data.createdAt
-          )?.getTime() || 0;
-
-        return bTime - aTime;
-      }
-    );
-
-
-    container.innerHTML =
+    designsHTML =
       designs
-        .map(
-          (design) => {
+        .map((design) => {
 
-            const data =
-              design.data;
+          const designData =
+            design.data;
 
-            const name =
-              data.name ||
-              data.title ||
-              data.fileName ||
-              "Design";
+          const name =
+            designData.name ||
+            designData.title ||
+            designData.fileName ||
+            "Design";
 
-            const image =
-              data.url ||
-              data.image ||
-              data.imageUrl ||
-              data.downloadURL ||
-              "";
+          const imageURL =
+            designData.url ||
+            designData.image ||
+            designData.imageUrl ||
+            designData.downloadURL ||
+            "";
 
 
-            return `
-              <div class="project-design">
+          return `
+            <div
+              style="
+                margin-bottom:20px;
+              ">
 
-                ${
-                  image
-                    ? `
-                      <a
-                        href="${escapeHTML(image)}"
-                        target="_blank"
-                        rel="noopener">
+              ${
+                imageURL
+                  ? `
+                    <a
+                      href="${escapeHTML(imageURL)}"
+                      target="_blank"
+                      rel="noopener">
 
-                        <img
-                          src="${escapeHTML(image)}"
-                          alt="${escapeHTML(name)}"
-                          loading="lazy">
+                      <img
+                        src="${escapeHTML(imageURL)}"
+                        alt="${escapeHTML(name)}"
+                        loading="lazy"
+                        style="
+                          width:100%;
+                          max-width:700px;
+                          border-radius:12px;
+                          display:block;
+                        ">
 
-                      </a>
-                    `
-                    : `
-                      <div class="muted">
-                        No preview available
-                      </div>
-                    `
-                }
+                    </a>
+                  `
+                  : ""
+              }
 
-                <h4>
+              <p>
+                <strong>
                   ${escapeHTML(name)}
-                </h4>
+                </strong>
+              </p>
 
-              </div>
-            `;
+            </div>
+          `;
 
-          }
-        )
+        })
         .join("");
 
-  } catch (error) {
-
-    console.error(
-      "PROJECT DESIGNS ERROR:",
-      error
-    );
-
-    container.innerHTML = `
-      <p class="muted">
-        Unable to load project designs.
-      </p>
-    `;
   }
+
+
+  /* =======================================================
+     MAIN PROJECT PAGE
+  ======================================================= */
+
+  projectContainer.innerHTML = `
+
+    <div>
+
+      <!-- PROJECT HEADER -->
+
+      <div
+        style="
+          display:flex;
+          justify-content:space-between;
+          align-items:flex-start;
+          gap:20px;
+          flex-wrap:wrap;
+          margin-bottom:30px;
+        ">
+
+        <div>
+
+          <span class="section-label">
+            PROJECT
+          </span>
+
+          <h2>
+            ${escapeHTML(title)}
+          </h2>
+
+        </div>
+
+        <span
+          class="status-badge ${getStatusClass(status)}">
+
+          ${escapeHTML(status)}
+
+        </span>
+
+      </div>
+
+
+      <!-- PROJECT DETAILS -->
+
+      <div
+        style="
+          margin-bottom:30px;
+        ">
+
+        <h3>
+          Requirements
+        </h3>
+
+        <p class="muted">
+          ${escapeHTML(description)}
+        </p>
+
+      </div>
+
+
+      <!-- PROJECT META -->
+
+      <div
+        class="project-meta"
+        style="
+          display:grid;
+          gap:8px;
+          margin-bottom:30px;
+        ">
+
+        <span>
+          <strong>Project ID:</strong>
+          ${escapeHTML(projectId)}
+        </span>
+
+        <span>
+          <strong>Created:</strong>
+          ${escapeHTML(
+            formatDate(data.createdAt)
+          )}
+        </span>
+
+        ${
+          data.updatedAt
+            ? `
+              <span>
+                <strong>Updated:</strong>
+                ${escapeHTML(
+                  formatDate(
+                    data.updatedAt
+                  )
+                )}
+              </span>
+            `
+            : ""
+        }
+
+      </div>
+
+
+      <!-- DESIGNS -->
+
+      <div
+        style="
+          margin-bottom:35px;
+        ">
+
+        <h3>
+          Your Designs
+        </h3>
+
+        ${designsHTML}
+
+      </div>
+
+
+      <!-- FILES -->
+
+      <div>
+
+        <h3>
+          Delivered Files
+        </h3>
+
+        ${filesHTML}
+
+      </div>
+
+
+      <!-- BACK -->
+
+      <div
+        style="
+          margin-top:35px;
+        ">
+
+        <a
+          class="btn"
+          href="dashboard.html#projects">
+
+          ← Back to My Projects
+
+        </a>
+
+      </div>
+
+    </div>
+  `;
 }
 
 
@@ -871,88 +730,54 @@ async function loadProjectDesigns(
    LOAD PROJECT
 ========================================================= */
 
-async function loadProject(
-  user
-) {
+async function loadProject(user) {
 
-  show(loadingState);
-  hide(errorState);
+  showLoading();
+
 
   const projectId =
     getProjectId();
 
 
-  /* -----------------------------------------
-     NO ID
-  ----------------------------------------- */
+  /* -------------------------------------------------------
+     NO PROJECT ID
+  ------------------------------------------------------- */
 
   if (!projectId) {
-  console.warn(
-    "No project ID found. Redirecting to client dashboard."
-  );
 
-  window.location.href =
-    "dashboard.html#projects";
-
-  return;
-}
-
-
-  /* -----------------------------------------
-     AUTH CHECK
-  ----------------------------------------- */
-
-  if (!user) {
+    /*
+      If the user clicked "My project" directly,
+      return to the project list instead of showing
+      a confusing Firebase error.
+    */
 
     window.location.href =
-      "../login.html";
+      "dashboard.html#projects";
 
     return;
   }
 
 
-  console.log(
-    "================================"
-  );
-
-  console.log(
-    "WEBCRAFT PROJECT PAGE"
-  );
-
-  console.log(
-    "User UID:",
-    user.uid
-  );
-
-  console.log(
-    "Project ID:",
-    projectId
-  );
-
-  console.log(
-    "================================"
-  );
-
-
   try {
 
-    /*
-      IMPORTANT:
-      Direct document lookup.
+    console.log(
+      "WEBCRAFT PROJECT"
+    );
 
-      This is:
+    console.log(
+      "UID:",
+      user.uid
+    );
 
-      projects/{projectId}
+    console.log(
+      "Project ID:",
+      projectId
+    );
 
-      NOT:
 
-      query(...)
-      orderBy(...)
-      where(...)
-      
-      Therefore there is no composite
-      index requirement for this lookup.
-    */
+    /* -----------------------------------------------------
+       DIRECT FIRESTORE LOOKUP
+    ----------------------------------------------------- */
 
     const projectRef =
       doc(
@@ -962,17 +787,11 @@ async function loadProject(
       );
 
 
-    const projectSnapshot =
-      await getDoc(
-        projectRef
-      );
+    const snapshot =
+      await getDoc(projectRef);
 
 
-    /* -----------------------------------------
-       PROJECT DOES NOT EXIST
-    ----------------------------------------- */
-
-    if (!projectSnapshot.exists()) {
+    if (!snapshot.exists()) {
 
       showError(
         "Project not found",
@@ -984,60 +803,23 @@ async function loadProject(
 
 
     const data =
-      projectSnapshot.data();
+      snapshot.data();
 
 
-    console.log(
-      "Project data:",
-      data
-    );
+    /* -----------------------------------------------------
+       OWNER CHECK
+    ----------------------------------------------------- */
 
-
-    /* -----------------------------------------
-       SECURITY CHECK
-    ----------------------------------------- */
-
-    /*
-      Client users can only view their own
-      projects according to the Firestore Rules.
-
-      We also check clientId here so that the
-      UI does not accidentally display another
-      user's project if rules/data are incorrect.
-    */
-
-    const role =
-      String(
-        data.clientRole ||
-        ""
-      )
-        .toLowerCase()
-        .trim();
-
-
-    const projectOwner =
+    const ownerId =
       data.clientId ||
       data.userId ||
       data.ownerId;
 
 
-    /*
-      If clientId exists and doesn't match
-      the logged-in user, don't render it.
-    */
-
     if (
-      projectOwner &&
-      projectOwner !== user.uid
+      ownerId &&
+      ownerId !== user.uid
     ) {
-
-      console.error(
-        "PROJECT OWNER MISMATCH",
-        {
-          projectOwner,
-          loggedInUser: user.uid
-        }
-      );
 
       showError(
         "Access denied",
@@ -1048,66 +830,21 @@ async function loadProject(
     }
 
 
-    /* -----------------------------------------
+    /* -----------------------------------------------------
        RENDER
-    ----------------------------------------- */
+    ----------------------------------------------------- */
 
-    renderProject(
+    await renderProject(
       projectId,
       data
     );
 
 
-    /* -----------------------------------------
-       SUBCOLLECTIONS
-    ----------------------------------------- */
-
-    await Promise.all([
-      loadProjectFiles(
-        projectId
-      ),
-      loadProjectDesigns(
-        projectId
-      )
-    ]);
-
-
   } catch (error) {
 
     console.error(
-      "================================"
-    );
-
-    console.error(
-      "WEBCRAFT PROJECT LOAD FAILED"
-    );
-
-    console.error(
-      "Project ID:",
-      projectId
-    );
-
-    console.error(
-      "UID:",
-      user.uid
-    );
-
-    console.error(
-      "Firebase code:",
-      error?.code
-    );
-
-    console.error(
-      "Firebase message:",
-      error?.message
-    );
-
-    console.error(
+      "PROJECT LOAD FAILED:",
       error
-    );
-
-    console.error(
-      "================================"
     );
 
 
@@ -1118,7 +855,7 @@ async function loadProject(
 
       showError(
         "Permission denied",
-        "Firestore Rules are preventing this account from reading this project.",
+        "Firestore Rules are blocking access to this project.",
         error
       );
 
@@ -1133,22 +870,7 @@ async function loadProject(
 
       showError(
         "Not authenticated",
-        "Your Firebase login session is no longer valid. Please log in again.",
-        error
-      );
-
-      return;
-    }
-
-
-    if (
-      error?.code ===
-      "not-found"
-    ) {
-
-      showError(
-        "Project not found",
-        "Firestore could not find this project.",
+        "Please log in again.",
         error
       );
 
@@ -1158,15 +880,16 @@ async function loadProject(
 
     showError(
       "Unable to load project",
-      "Something went wrong while loading this project.",
+      "Something went wrong while loading your project.",
       error
     );
+
   }
 }
 
 
 /* =========================================================
-   AUTH STATE
+   AUTH
 ========================================================= */
 
 onAuthStateChanged(
@@ -1182,10 +905,6 @@ onAuthStateChanged(
     }
 
 
-    /*
-      Refresh Firebase user information.
-    */
-
     try {
 
       await user.reload();
@@ -1193,21 +912,14 @@ onAuthStateChanged(
     } catch (error) {
 
       console.warn(
-        "Firebase user reload failed:",
+        "User reload failed:",
         error
       );
+
     }
 
 
-    /*
-      Require verified email.
-    */
-
     if (!user.emailVerified) {
-
-      console.warn(
-        "Email is not verified."
-      );
 
       await signOut(auth);
 
@@ -1218,9 +930,8 @@ onAuthStateChanged(
     }
 
 
-    await loadProject(
-      user
-    );
+    await loadProject(user);
+
   }
 );
 
@@ -1228,6 +939,9 @@ onAuthStateChanged(
 /* =========================================================
    LOGOUT
 ========================================================= */
+
+const logoutButton =
+  document.getElementById("logout");
 
 if (logoutButton) {
 
@@ -1237,9 +951,7 @@ if (logoutButton) {
 
       try {
 
-        await signOut(
-          auth
-        );
+        await signOut(auth);
 
         window.location.href =
           "../login.html";
@@ -1247,7 +959,7 @@ if (logoutButton) {
       } catch (error) {
 
         console.error(
-          "Logout error:",
+          "Logout failed:",
           error
         );
 
