@@ -1,10 +1,297 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Start a Project — WebCraft Studio</title><link rel="stylesheet" href="../css/style.css"></head>
-<body><header class="topbar"><a class="logo" href="../index.html"><span>W</span> WebCraft Studio</a><nav><a href="../index.html">Home</a><a class="nav-btn" href="project.html">My project</a></nav></header>
-<main class="form-page"><section class="form-intro"><div class="pill">NEW PROJECT</div><h1>Show us what<br><em>you have in mind.</em></h1><p>Upload your design and give us the details. We'll take it from there.</p></section>
-<section class="panel"><form id="requestForm">
-<label>Name<input name="name" placeholder="Your name" required></label><label>Email<input name="email" type="email" placeholder="you@example.com" required></label><label>Project name<input name="website" placeholder="e.g. My Business Website" required></label>
-<label>What should we build?<textarea name="requirements" rows="6" placeholder="Pages, colors, buttons, animations, mobile behavior, etc."></textarea></label>
-<label class="upload">Design screenshot(s)<input name="designs" type="file" accept="image/*" multiple required><span>Click to choose one or more images</span></label>
-<button class="btn" type="submit">Send project request →</button></form><div id="message" class="notice hidden"></div></section></main>
-<script type="module" src="../js/request.js"></script></body></html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Start a Project — WebCraft Studio</title>
+
+  <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    .package-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-bottom: 30px;
+    }
+
+    .package-card {
+      position: relative;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 18px;
+      padding: 24px;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .package-card:hover {
+      transform: translateY(-3px);
+      border-color: #FFD700;
+    }
+
+    .package-card.selected {
+      border: 2px solid #FFD700;
+      box-shadow: 0 0 25px rgba(255,215,0,.12);
+    }
+
+    .package-card input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .package-price {
+      font-size: 32px;
+      font-weight: 800;
+      margin: 12px 0;
+    }
+
+    .package-name {
+      font-size: 19px;
+      font-weight: 700;
+    }
+
+    .package-description {
+      color: #aaa;
+      line-height: 1.5;
+    }
+
+    .selected-package {
+      margin: 20px 0;
+      padding: 16px;
+      border-radius: 12px;
+      background: rgba(255,215,0,.08);
+      display: none;
+    }
+
+    @media (max-width: 800px) {
+      .package-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header class="topbar">
+
+  <a class="logo" href="../index.html">
+    <span>W</span>
+    WebCraft Studio
+  </a>
+
+  <nav>
+    <a href="../index.html">Home</a>
+    <a class="nav-btn" href="project.html">My project</a>
+  </nav>
+
+</header>
+
+<main class="form-page">
+
+  <section class="form-intro">
+
+    <div class="pill">
+      NEW PROJECT
+    </div>
+
+    <h1>
+      Show us what
+      <br>
+      <em>you have in mind.</em>
+    </h1>
+
+    <p>
+      Choose your website package, upload your design,
+      and tell us what you want built.
+    </p>
+
+  </section>
+
+  <section class="panel">
+
+    <h2>
+      Choose Your Website Package
+    </h2>
+
+    <p class="muted">
+      Select the package you want before continuing.
+    </p>
+
+    <div class="package-grid">
+
+      <label class="package-card">
+
+        <input
+          type="radio"
+          name="package"
+          value="HTML ONLY"
+          data-price="100"
+          required>
+
+        <div class="package-name">
+          HTML ONLY
+        </div>
+
+        <div class="package-price">
+          ₱100
+        </div>
+
+        <p class="package-description">
+          HTML website only.
+        </p>
+
+      </label>
+
+      <label class="package-card">
+
+        <input
+          type="radio"
+          name="package"
+          value="HTML + CSS"
+          data-price="150">
+
+        <div class="package-name">
+          HTML + CSS
+        </div>
+
+        <div class="package-price">
+          ₱150
+        </div>
+
+        <p class="package-description">
+          HTML website with custom styling.
+        </p>
+
+      </label>
+
+      <label class="package-card">
+
+        <input
+          type="radio"
+          name="package"
+          value="HTML + CSS + JAVASCRIPT"
+          data-price="200">
+
+        <div class="package-name">
+          HTML + CSS + JAVASCRIPT
+        </div>
+
+        <div class="package-price">
+          ₱200
+        </div>
+
+        <p class="package-description">
+          HTML, CSS and JavaScript for interactive features.
+        </p>
+
+      </label>
+
+    </div>
+
+    <div
+      id="selectedPackage"
+      class="selected-package">
+    </div>
+
+    <form id="requestForm">
+
+      <label>
+        Name
+
+        <input
+          name="name"
+          placeholder="Your name"
+          required>
+
+      </label>
+
+      <label>
+        Email
+
+        <input
+          name="email"
+          type="email"
+          placeholder="you@example.com"
+          required>
+
+      </label>
+
+      <label>
+        Project name
+
+        <input
+          name="website"
+          placeholder="e.g. My Business Website"
+          required>
+
+      </label>
+
+      <label>
+        What should we build?
+
+        <textarea
+          name="requirements"
+          rows="6"
+          placeholder="Pages, colors, buttons, animations, mobile behavior, etc."
+          required></textarea>
+
+      </label>
+
+      <label class="upload">
+
+        Design screenshot(s)
+
+        <input
+          name="designs"
+          type="file"
+          accept="image/*"
+          multiple
+          required>
+
+        <span>
+          Click to choose one or more images
+        </span>
+
+      </label>
+
+      <button
+        class="btn"
+        type="submit">
+
+        Continue to Payment →
+
+      </button>
+
+    </form>
+
+    <div
+      id="message"
+      class="notice hidden">
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+
+  <p>
+    © 2026 WebCraft Studio
+    <span>
+      Design to code, made simple.
+    </span>
+  </p>
+
+</footer>
+
+<script
+  type="module"
+  src="../js/request.js">
+</script>
+
+</body>
+</html>
