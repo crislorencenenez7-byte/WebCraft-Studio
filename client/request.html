@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Start a Project — WebCraft Studio</title><link rel="stylesheet" href="../css/style.css"></head>
+<body><header class="topbar"><a class="logo" href="../index.html"><span>W</span> WebCraft Studio</a><nav><a href="../index.html">Home</a><a class="nav-btn" href="project.html">My project</a></nav></header>
+<main class="form-page"><section class="form-intro"><div class="pill">NEW PROJECT</div><h1>Show us what<br><em>you have in mind.</em></h1><p>Upload your design and give us the details. We'll take it from there.</p></section>
+<section class="panel"><form id="requestForm">
+<label>Name<input name="name" placeholder="Your name" required></label><label>Email<input name="email" type="email" placeholder="you@example.com" required></label><label>Project name<input name="website" placeholder="e.g. My Business Website" required></label>
+<label>What should we build?<textarea name="requirements" rows="6" placeholder="Pages, colors, buttons, animations, mobile behavior, etc."></textarea></label>
+<label class="upload">Design screenshot(s)<input name="designs" type="file" accept="image/*" multiple required><span>Click to choose one or more images</span></label>
+<button class="btn" type="submit">Send project request →</button></form><div id="message" class="notice hidden"></div></section></main>
+<script type="module" src="../js/request.js"></script></body></html>
