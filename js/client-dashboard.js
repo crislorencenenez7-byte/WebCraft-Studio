@@ -1,4 +1,12 @@
+/* =========================================================
+   WEBCRAFT STUDIO
+   CLIENT DASHBOARD
+   ========================================================= */
+
 import { firebaseConfig } from "./firebase-config.js";
+
+
+/* FIREBASE APP */
 
 import {
   initializeApp,
@@ -6,11 +14,17 @@ import {
   getApp
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 
+
+/* FIREBASE AUTH */
+
 import {
   getAuth,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+
+/* FIRESTORE */
 
 import {
   getFirestore,
@@ -23,21 +37,22 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 
-/* =========================================
-   FIREBASE
-========================================= */
+/* =========================================================
+   INITIALIZE FIREBASE
+   ========================================================= */
 
 const app = getApps().length
   ? getApp()
   : initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
+
 const db = getFirestore(app);
 
 
-/* =========================================
-   ELEMENTS
-========================================= */
+/* =========================================================
+   HTML ELEMENTS
+   ========================================================= */
 
 const clientName =
   document.getElementById("clientName");
@@ -61,35 +76,51 @@ const logoutButton =
   document.getElementById("logout");
 
 
-/* =========================================
-   HELPERS
-========================================= */
-
-function hide(element) {
-  if (!element) return;
-
-  element.classList.add("hidden");
-  element.style.display = "none";
-}
-
+/* =========================================================
+   SHOW / HIDE
+   ========================================================= */
 
 function show(element) {
+
   if (!element) return;
 
   element.classList.remove("hidden");
+
   element.style.display = "";
+
 }
 
 
+function hide(element) {
+
+  if (!element) return;
+
+  element.classList.add("hidden");
+
+  element.style.display = "none";
+
+}
+
+
+/* =========================================================
+   SECURITY
+   ========================================================= */
+
 function escapeHTML(value) {
+
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+
 }
 
+
+/* =========================================================
+   DATE
+   ========================================================= */
 
 function formatDate(value) {
 
@@ -99,10 +130,20 @@ function formatDate(value) {
 
   try {
 
-    const date =
+    let date;
+
+    if (
+      value &&
       typeof value.toDate === "function"
-        ? value.toDate()
-        : new Date(value);
+    ) {
+
+      date = value.toDate();
+
+    } else {
+
+      date = new Date(value);
+
+    }
 
     if (isNaN(date.getTime())) {
       return "No date";
@@ -118,36 +159,62 @@ function formatDate(value) {
     );
 
   } catch {
+
     return "No date";
+
   }
+
 }
 
 
-function statusClass(status) {
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+function getStatusClass(status) {
 
   const value =
     String(status || "Pending")
-      .toLowerCase();
+      .toLowerCase()
+      .trim();
 
-  if (value === "completed")
+
+  if (value === "completed") {
+
     return "status-completed";
 
-  if (value === "coding")
+  }
+
+
+  if (value === "coding") {
+
     return "status-coding";
 
-  if (value === "review")
+  }
+
+
+  if (value === "review") {
+
     return "status-review";
 
-  if (value === "pending")
+  }
+
+
+  if (value === "pending") {
+
     return "status-pending";
 
+  }
+
+
   return "status-default";
+
 }
 
 
-/* =========================================
-   USER INFO
-========================================= */
+/* =========================================================
+   DISPLAY USER
+   ========================================================= */
 
 function displayUser(user) {
 
@@ -157,75 +224,131 @@ function displayUser(user) {
       user.displayName ||
       user.email?.split("@")[0] ||
       "Client";
+
   }
+
 
   if (clientEmail) {
 
     clientEmail.textContent =
       user.email || "";
+
   }
+
 }
 
 
-/* =========================================
-   ADMIN LINK
-========================================= */
+/* =========================================================
+   ADD ADMIN BUTTON
+   ========================================================= */
 
 function addAdminLink() {
 
-  const nav = document.querySelector("header nav");
+  const nav =
+    document.querySelector("header nav");
 
-  if (!nav) return;
 
-  if (document.getElementById("adminDashboardLink")) {
+  if (!nav) {
     return;
   }
 
-  const link =
+
+  if (
+    document.getElementById(
+      "adminDashboardLink"
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  const adminLink =
     document.createElement("a");
 
-  link.id = "adminDashboardLink";
-  link.href = "../admin/dashboard.html";
-  link.textContent = "Admin";
 
-  nav.insertBefore(
-    link,
-    logoutButton || null
-  );
+  adminLink.id =
+    "adminDashboardLink";
+
+
+  adminLink.href =
+    "../admin/dashboard.html";
+
+
+  adminLink.textContent =
+    "Admin Dashboard";
+
+
+  if (logoutButton) {
+
+    nav.insertBefore(
+      adminLink,
+      logoutButton
+    );
+
+  } else {
+
+    nav.appendChild(
+      adminLink
+    );
+
+  }
+
 }
 
 
-/* =========================================
-   CHECK USER ROLE
-========================================= */
+/* =========================================================
+   CHECK ADMIN ROLE
+   ========================================================= */
 
 async function checkUserRole(user) {
 
   try {
 
     const userRef =
-      doc(db, "users", user.uid);
+      doc(
+        db,
+        "users",
+        user.uid
+      );
 
-    const userSnap =
+
+    const userSnapshot =
       await getDoc(userRef);
 
-    if (!userSnap.exists()) {
+
+    if (!userSnapshot.exists()) {
+
       console.warn(
-        "No Firestore user document found."
+        "User document does not exist."
       );
+
       return;
+
     }
 
-    const data =
-      userSnap.data();
+
+    const userData =
+      userSnapshot.data();
+
 
     console.log(
-      "WebCraft role:",
-      data.role
+      "Current role:",
+      userData.role
     );
 
-    if (data.role === "admin") {
+
+    if (
+      userData.role === "admin"
+    ) {
+
       addAdminLink();
+
+      console.log(
+        "Admin access detected."
+      );
+
     }
 
   } catch (error) {
@@ -234,42 +357,69 @@ async function checkUserRole(user) {
       "Role check failed:",
       error
     );
+
   }
+
 }
 
 
-/* =========================================
+/* =========================================================
    LOAD PROJECTS
-========================================= */
+   ========================================================= */
 
 async function loadProjects(user) {
+
+  if (!user) {
+    return;
+  }
+
 
   show(loadingState);
 
   hide(errorState);
+
   hide(emptyState);
 
+
   if (projectList) {
+
     projectList.innerHTML = "";
+
   }
+
 
   try {
 
     console.log(
-      "Loading projects for:",
+      "Loading projects..."
+    );
+
+    console.log(
+      "Client UID:",
       user.uid
     );
+
 
     /*
       IMPORTANT:
 
-      Firestore project document:
+      Firestore:
 
-      clientId = Firebase Authentication UID
+      projects/{projectId}
+
+      must contain:
+
+      clientId:
+      Firebase Authentication UID
     */
 
+
     const projectsRef =
-      collection(db, "projects");
+      collection(
+        db,
+        "projects"
+      );
+
 
     const projectsQuery =
       query(
@@ -281,118 +431,191 @@ async function loadProjects(user) {
         )
       );
 
+
     const snapshot =
-      await getDocs(projectsQuery);
+      await getDocs(
+        projectsQuery
+      );
+
 
     console.log(
       "Projects found:",
       snapshot.size
     );
 
+
     hide(loadingState);
+
+
+    /* NO PROJECTS */
 
     if (snapshot.empty) {
 
       show(emptyState);
 
       return;
+
     }
+
 
     const projects = [];
 
-    snapshot.forEach((projectDoc) => {
 
-      projects.push({
-        id: projectDoc.id,
-        data: projectDoc.data()
-      });
+    /* GET PROJECTS */
 
-    });
+    snapshot.forEach(
+      (projectDoc) => {
 
+        projects.push({
 
-    /* Sort locally */
-    projects.sort((a, b) => {
+          id:
+            projectDoc.id,
 
-      const aDate =
-        a.data.createdAt?.toMillis?.() || 0;
+          data:
+            projectDoc.data()
 
-      const bDate =
-        b.data.createdAt?.toMillis?.() || 0;
+        });
 
-      return bDate - aDate;
-    });
+      }
+    );
 
 
-    /* Render */
-    projects.forEach((project) => {
+    /* SORT NEWEST FIRST */
 
-      const data =
-        project.data;
+    projects.sort(
+      (a, b) => {
 
-      const title =
-        data.title ||
-        data.projectName ||
-        data.name ||
-        "Untitled Website";
+        const aTime =
+          a.data.createdAt &&
+          typeof a.data.createdAt.toMillis ===
+            "function"
+            ? a.data.createdAt.toMillis()
+            : 0;
 
-      const description =
-        data.description ||
-        data.requirements ||
-        "Website project";
 
-      const status =
-        data.status ||
-        "Pending";
+        const bTime =
+          b.data.createdAt &&
+          typeof b.data.createdAt.toMillis ===
+            "function"
+            ? b.data.createdAt.toMillis()
+            : 0;
 
-      const card =
-        document.createElement("article");
 
-      card.className =
-        "project-card";
+        return bTime - aTime;
 
-      card.innerHTML = `
-        <div class="project-card-top">
+      }
+    );
 
-          <div>
-            <h3>
-              ${escapeHTML(title)}
-            </h3>
 
-            <p class="project-description">
-              ${escapeHTML(description)}
-            </p>
+    /* =====================================================
+       RENDER PROJECTS
+       ===================================================== */
+
+    projects.forEach(
+      (project) => {
+
+        const data =
+          project.data;
+
+
+        const title =
+          data.title ||
+          data.projectName ||
+          data.name ||
+          "Untitled Website";
+
+
+        const description =
+          data.description ||
+          data.requirements ||
+          "Website project";
+
+
+        const status =
+          data.status ||
+          "Pending";
+
+
+        const createdAt =
+          data.createdAt ||
+          null;
+
+
+        const card =
+          document.createElement(
+            "article"
+          );
+
+
+        card.className =
+          "project-card";
+
+
+        card.innerHTML = `
+
+          <div class="project-card-top">
+
+            <div>
+
+              <h3>
+                ${escapeHTML(title)}
+              </h3>
+
+              <p class="project-description">
+                ${escapeHTML(description)}
+              </p>
+
+            </div>
+
+
+            <span
+              class="status-badge ${getStatusClass(status)}">
+
+              ${escapeHTML(status)}
+
+            </span>
+
           </div>
 
-          <span class="status-badge ${statusClass(status)}">
-            ${escapeHTML(status)}
-          </span>
 
-        </div>
+          <div class="project-meta">
 
-        <div class="project-meta">
+            <span>
 
-          <span>
-            Created:
-            ${escapeHTML(
-              formatDate(data.createdAt)
-            )}
-          </span>
+              Created:
+              ${escapeHTML(
+                formatDate(createdAt)
+              )}
 
-        </div>
+            </span>
 
-        <div class="project-actions">
+          </div>
 
-          <a
-            class="btn"
-            href="project.html?id=${encodeURIComponent(project.id)}">
-            Track Project →
-          </a>
 
-        </div>
-      `;
+          <div class="project-actions">
 
-      projectList.appendChild(card);
-    });
+            <a
+              class="btn"
+              href="project.html?id=${encodeURIComponent(
+                project.id
+              )}">
+
+              Track Project →
+
+            </a>
+
+          </div>
+
+        `;
+
+
+        projectList.appendChild(
+          card
+        );
+
+      }
+    );
+
 
   } catch (error) {
 
@@ -401,13 +624,17 @@ async function loadProjects(user) {
       error
     );
 
+
     hide(loadingState);
+
     hide(emptyState);
 
     show(errorState);
 
+
     let message =
-      "Unable to load your projects.";
+      "Unable to load projects.";
+
 
     if (
       error.code ===
@@ -415,8 +642,10 @@ async function loadProjects(user) {
     ) {
 
       message =
-        "Firestore denied access. Make sure clientId is the same as your Firebase Auth UID.";
+        "Firestore denied access. Check that clientId matches your Firebase Auth UID.";
+
     }
+
 
     else if (
       error.code ===
@@ -424,16 +653,34 @@ async function loadProjects(user) {
     ) {
 
       message =
-        "Firestore configuration/index problem.";
+        "Firestore reported a configuration or index problem.";
+
     }
 
-    else if (error.message) {
+
+    else if (
+      error.code ===
+      "unavailable"
+    ) {
+
+      message =
+        "Firebase is temporarily unavailable.";
+
+    }
+
+
+    else if (
+      error.message
+    ) {
 
       message =
         error.message;
+
     }
 
+
     errorState.innerHTML = `
+
       <div class="error-box">
 
         <strong>
@@ -448,29 +695,61 @@ async function loadProjects(user) {
           class="btn"
           id="retryProjects"
           type="button">
+
           Try Again
+
         </button>
 
       </div>
+
     `;
 
-    document
-      .getElementById("retryProjects")
-      ?.addEventListener(
-        "click",
-        () => loadProjects(user)
+
+    const retryButton =
+      document.getElementById(
+        "retryProjects"
       );
+
+
+    retryButton?.addEventListener(
+      "click",
+      () => {
+
+        const currentUser =
+          auth.currentUser;
+
+
+        if (currentUser) {
+
+          loadProjects(
+            currentUser
+          );
+
+        }
+
+      }
+    );
+
   }
+
 }
 
 
-/* =========================================
-   AUTH
-========================================= */
+/* =========================================================
+   AUTH STATE
+   ========================================================= */
 
 onAuthStateChanged(
   auth,
   async (user) => {
+
+    console.log(
+      "Auth state:",
+      user
+        ? "Logged in"
+        : "Logged out"
+    );
+
 
     if (!user) {
 
@@ -478,30 +757,37 @@ onAuthStateChanged(
         "../login.html";
 
       return;
+
     }
 
-    console.log(
-      "Logged in:",
-      user.email
-    );
 
     console.log(
-      "UID:",
+      "Firebase UID:",
       user.uid
     );
 
-    displayUser(user);
 
-    await checkUserRole(user);
+    displayUser(
+      user
+    );
 
-    await loadProjects(user);
+
+    await checkUserRole(
+      user
+    );
+
+
+    await loadProjects(
+      user
+    );
+
   }
 );
 
 
-/* =========================================
+/* =========================================================
    LOGOUT
-========================================= */
+   ========================================================= */
 
 if (logoutButton) {
 
@@ -511,201 +797,30 @@ if (logoutButton) {
 
       try {
 
-        await signOut(auth);
+        await signOut(
+          auth
+        );
+
 
         window.location.href =
           "../login.html";
 
+
       } catch (error) {
 
         console.error(
-          "Logout error:",
+          "Logout failed:",
           error
         );
 
+
         alert(
-          "Unable to log out."
+          "Unable to log out. Please try again."
         );
+
       }
+
     }
   );
+
 }
-        <b>02</b>
-
-        <h3>
-          Track your project
-        </h3>
-
-        <p>
-          See the current status and review the work from your portal.
-        </p>
-
-        <a
-          class="text-link"
-          href="#projects">
-          View projects →
-        </a>
-
-      </article>
-
-
-      <article>
-
-        <b>03</b>
-
-        <h3>
-          Get the website
-        </h3>
-
-        <p>
-          When development is complete, your finished files and preview are delivered here.
-        </p>
-
-      </article>
-
-    </section>
-
-
-    <!-- =========================
-         TRACK YOUR PROJECT
-         ========================= -->
-
-    <section
-      class="panel"
-      id="projects">
-
-      <div class="section-header">
-
-        <div>
-          <span class="section-label">
-            PROJECTS
-          </span>
-
-          <h2>
-            Track Your Project
-          </h2>
-
-          <p class="muted">
-            Monitor the progress of your website requests.
-          </p>
-        </div>
-
-        <a
-          href="request.html"
-          class="btn">
-          + New project
-        </a>
-
-      </div>
-
-
-      <!-- LOADING -->
-
-      <div id="loadingState">
-
-        <p class="muted">
-          Loading projects...
-        </p>
-
-      </div>
-
-
-      <!-- ERROR -->
-
-      <div
-        id="errorState"
-        class="hidden">
-      </div>
-
-
-      <!-- EMPTY -->
-
-      <div
-        id="emptyState"
-        class="hidden">
-
-        <h3>
-          No projects yet
-        </h3>
-
-        <p class="muted">
-          Your website requests will appear here.
-        </p>
-
-        <a
-          href="request.html"
-          class="btn">
-          Request a Website
-        </a>
-
-      </div>
-
-
-      <!-- PROJECT CARDS -->
-
-      <div id="projectList"></div>
-
-    </section>
-
-
-    <!-- =========================
-         ACCOUNT
-         ========================= -->
-
-    <section class="panel">
-
-      <div class="section-header">
-
-        <div>
-
-          <span class="section-label">
-            ACCOUNT
-          </span>
-
-          <h2>
-            Your Account
-          </h2>
-
-        </div>
-
-      </div>
-
-      <p
-        class="muted"
-        id="clientEmail">
-        Loading...
-      </p>
-
-    </section>
-
-  </main>
-
-
-  <!-- =========================
-       FOOTER
-       ========================= -->
-
-  <footer>
-
-    <p>
-      © 2026 WebCraft Studio
-      <span>
-        Design to code, made simple.
-      </span>
-    </p>
-
-  </footer>
-
-
-  <!-- =========================
-       CLIENT DASHBOARD JS
-       ========================= -->
-
-  <script
-    type="module"
-    src="../js/client-dashboard.js">
-  </script>
-
-</body>
-
-</html>
