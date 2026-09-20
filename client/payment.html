@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1">
+
+  <title>Payment — WebCraft Studio</title>
+
+  <link
+    rel="stylesheet"
+    href="../css/style.css">
+
+  <style>
+
+    .payment-box {
+      max-width: 620px;
+      margin: 40px auto;
+      text-align: center;
+    }
+
+    .amount {
+      font-size: 42px;
+      font-weight: 800;
+      margin: 10px 0 25px;
+    }
+
+    .qr-wrapper {
+      background: white;
+      padding: 20px;
+      border-radius: 20px;
+      display: inline-block;
+      margin: 20px 0;
+    }
+
+    .qr-wrapper img {
+      width: 300px;
+      max-width: 70vw;
+      display: block;
+    }
+
+    .payment-info {
+      text-align: left;
+      padding: 20px;
+      border-radius: 15px;
+      background: rgba(255,255,255,.04);
+      margin-top: 20px;
+    }
+
+    .payment-info p {
+      margin: 8px 0;
+    }
+
+    .payment-form {
+      text-align: left;
+      margin-top: 30px;
+    }
+
+    .payment-form label {
+      display: block;
+      margin-top: 18px;
+    }
+
+    .payment-form input {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 7px;
+    }
+
+    .status-box {
+      padding: 18px;
+      border-radius: 14px;
+      margin-top: 20px;
+      background: rgba(255,215,0,.08);
+    }
+
+    #paymentMessage {
+      margin-top: 20px;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+<header class="topbar">
+
+  <a
+    class="logo"
+    href="../index.html">
+
+    <span>W</span>
+    WebCraft Studio
+
+  </a>
+
+  <nav>
+
+    <a href="dashboard.html">
+      Dashboard
+    </a>
+
+    <a href="project.html">
+      My projects
+    </a>
+
+  </nav>
+
+</header>
+
+
+<main class="page">
+
+  <section
+    id="paymentBox"
+    class="panel payment-box">
+
+    <span class="section-label">
+      PAYMENT METHOD
+    </span>
+
+    <h1>
+      Complete Your Payment
+    </h1>
+
+    <p
+      id="projectName"
+      class="muted">
+      Loading project...
+    </p>
+
+    <div
+      id="packageName"
+      class="muted">
+    </div>
+
+    <div
+      id="amount"
+      class="amount">
+      ₱0
+    </div>
+
+
+    <div class="qr-wrapper">
+
+      <img
+        src="../images/gcash-qr.png"
+        alt="GCash Payment QR">
+
+    </div>
+
+
+    <p class="muted">
+
+      Scan this QR code using GCash
+      and pay the exact amount shown above.
+
+    </p>
+
+
+    <div class="payment-info">
+
+      <strong>
+        Payment Instructions
+      </strong>
+
+      <p>
+        1. Open GCash.
+      </p>
+
+      <p>
+        2. Scan the QR code.
+      </p>
+
+      <p>
+        3. Enter the exact amount.
+      </p>
+
+      <p>
+        4. Complete the payment.
+      </p>
+
+      <p>
+        5. Take a screenshot of your successful transaction.
+      </p>
+
+      <p>
+        6. Enter your reference number below.
+      </p>
+
+    </div>
+
+
+    <div
+      id="currentStatus"
+      class="status-box">
+
+      Payment Status:
+      <strong id="statusText">
+        Loading...
+      </strong>
+
+    </div>
+
+
+    <form
+      id="paymentForm"
+      class="payment-form">
+
+      <label>
+
+        GCash Reference Number
+
+        <input
+          id="reference"
+          type="text"
+          placeholder="Enter your GCash reference number"
+          required>
+
+      </label>
+
+
+      <label>
+
+        Payment Screenshot
+
+        <input
+          id="proof"
+          type="file"
+          accept="image/*"
+          required>
+
+      </label>
+
+
+      <button
+        id="submitPayment"
+        class="btn"
+        type="submit">
+
+        Submit Payment Proof
+
+      </button>
+
+    </form>
+
+
+    <div
+      id="paymentMessage"
+      class="notice hidden">
+    </div>
+
+  </section>
+
+</main>
+
+
+<footer>
+
+  <p>
+
+    © 2026 WebCraft Studio
+
+    <span>
+      Design to code, made simple.
+    </span>
+
+  </p>
+
+</footer>
+
+
+<script
+  type="module"
+  src="../js/payment.js">
+</script>
+
+</body>
+
+</html>
