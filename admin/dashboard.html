@@ -1,4 +1,167 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin — WebCraft Studio</title><link rel="stylesheet" href="../css/style.css"></head>
-<body><header class="topbar"><a class="logo" href="../index.html"><span>W</span> WebCraft Studio <small>ADMIN</small></a><nav><a href="../index.html">Public site</a><a class="nav-btn" href="../client/request.html">Test request</a></nav></header>
-<main class="page"><div class="section-title"><span>CONTROL CENTER</span><h1>Projects</h1></div><div class="notice">Firebase is prepared for this version. Add your Firebase config in <code>js/firebase-config.js</code> after setup.</div><section id="requests" class="project-grid"><div class="panel"><p class="muted">No Firebase connection yet.</p></div></section></main><script type="module" src="../js/admin.js"></script></body></html>
+<html lang="en">
+
+<head>
+
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1">
+
+  <title>Admin — WebCraft Studio</title>
+
+  <link
+    rel="stylesheet"
+    href="../css/style.css">
+
+  <style>
+
+    .admin-project {
+      margin-bottom: 25px;
+    }
+
+    .payment-section {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 15px;
+      background: rgba(255,255,255,.04);
+    }
+
+    .payment-proof {
+      margin-top: 15px;
+      background: #fff;
+      padding: 10px;
+      border-radius: 12px;
+      max-width: 100%;
+    }
+
+    .payment-proof img {
+      display: block;
+      max-width: 100%;
+      max-height: 600px;
+      margin: auto;
+      border-radius: 8px;
+    }
+
+    .admin-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+
+    .btn-danger {
+      background: #b00020;
+      color: white;
+      border: 0;
+    }
+
+    .verified {
+      color: #65d98a;
+      font-weight: 700;
+    }
+
+    .pending {
+      color: #ffd700;
+      font-weight: 700;
+    }
+
+    .rejected {
+      color: #ff7777;
+      font-weight: 700;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+<header class="topbar">
+
+  <a
+    class="logo"
+    href="../index.html">
+
+    <span>W</span>
+    WebCraft Studio
+
+    <small>
+      ADMIN
+    </small>
+
+  </a>
+
+  <nav>
+
+    <a href="../index.html">
+      Public site
+    </a>
+
+    <a
+      href="../client/dashboard.html">
+      Client portal
+    </a>
+
+  </nav>
+
+</header>
+
+
+<main class="page">
+
+  <div class="section-title">
+
+    <span>
+      CONTROL CENTER
+    </span>
+
+    <h1>
+      Projects
+    </h1>
+
+    <p class="muted">
+      Manage projects and verify client payments.
+    </p>
+
+  </div>
+
+
+  <section
+    id="requests"
+    class="project-grid">
+
+    <div class="panel">
+
+      <p class="muted">
+        Loading projects...
+      </p>
+
+    </div>
+
+  </section>
+
+</main>
+
+
+<footer>
+
+  <p>
+    © 2026 WebCraft Studio
+    <span>
+      WebCraft Studio Admin
+    </span>
+  </p>
+
+</footer>
+
+
+<script
+  type="module"
+  src="../js/admin.js">
+</script>
+
+</body>
+
+</html>
