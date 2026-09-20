@@ -887,14 +887,15 @@ async function loadProject(
   ----------------------------------------- */
 
   if (!projectId) {
+  console.warn(
+    "No project ID found. Redirecting to client dashboard."
+  );
 
-    showError(
-      "Project not found",
-      "The project ID is missing from the URL."
-    );
+  window.location.href =
+    "dashboard.html#projects";
 
-    return;
-  }
+  return;
+}
 
 
   /* -----------------------------------------
