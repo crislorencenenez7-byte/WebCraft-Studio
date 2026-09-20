@@ -1,3 +1,283 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard — WebCraft Studio</title><link rel="stylesheet" href="../css/style.css"></head>
-<body data-protected="client"><header class="topbar"><a class="logo" href="../index.html"><span>W</span> WebCraft Studio</a><nav><a href="../index.html">Home</a><a href="project.html">My projects</a><a class="nav-btn" href="request.html">New project</a><button class="text-link" id="logout">Log out</button></nav></header>
-<main class="page"><div class="section-title"><span>CLIENT PORTAL</span><h1>Welcome, <em id="clientName">Client</em>.</h1></div><section class="steps"><article><b>01</b><h3>Submit a request</h3><p>Upload your screenshots and describe exactly what you want built.</p><a class="btn" href="request.html">Start project →</a></article><article><b>02</b><h3>Track your project</h3><p>See the current status and review the work from your portal.</p><a class="text-link" href="project.html">View project →</a></article><article><b>03</b><h3>Get the website</h3><p>When development is complete, your finished files and preview are delivered here.</p></article></section><section class="panel"><h2>Account</h2><p class="muted" id="clientEmail">Loading...</p></section></main><script type="module" src="../js/client-dashboard.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Dashboard — WebCraft Studio</title>
+
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body data-protected="client">
+
+  <!-- =========================
+       HEADER
+       ========================= -->
+
+  <header class="topbar">
+
+    <a class="logo" href="../index.html">
+      <span>W</span>
+      WebCraft Studio
+    </a>
+
+    <nav>
+      <a href="../index.html">Home</a>
+
+      <a href="dashboard.html">
+        Dashboard
+      </a>
+
+      <a href="project.html">
+        My projects
+      </a>
+
+      <a class="nav-btn" href="request.html">
+        New project
+      </a>
+
+      <button
+        class="text-link"
+        id="logout"
+        type="button">
+        Log out
+      </button>
+    </nav>
+
+  </header>
+
+
+  <!-- =========================
+       MAIN
+       ========================= -->
+
+  <main class="page">
+
+    <!-- PAGE TITLE -->
+
+    <div class="section-title">
+
+      <span>CLIENT PORTAL</span>
+
+      <h1>
+        Welcome,
+        <em id="clientName">Client</em>.
+      </h1>
+
+      <p class="muted">
+        Manage your website requests and track development progress.
+      </p>
+
+    </div>
+
+
+    <!-- =========================
+         QUICK STEPS
+         ========================= -->
+
+    <section class="steps">
+
+      <article>
+
+        <b>01</b>
+
+        <h3>
+          Submit a request
+        </h3>
+
+        <p>
+          Upload your screenshots and describe exactly what you want built.
+        </p>
+
+        <a
+          class="btn"
+          href="request.html">
+          Start project →
+        </a>
+
+      </article>
+
+
+      <article>
+
+        <b>02</b>
+
+        <h3>
+          Track your project
+        </h3>
+
+        <p>
+          See the current status and review the work from your portal.
+        </p>
+
+        <a
+          class="text-link"
+          href="#projects">
+          View projects →
+        </a>
+
+      </article>
+
+
+      <article>
+
+        <b>03</b>
+
+        <h3>
+          Get the website
+        </h3>
+
+        <p>
+          When development is complete, your finished files and preview are delivered here.
+        </p>
+
+      </article>
+
+    </section>
+
+
+    <!-- =========================
+         TRACK YOUR PROJECT
+         ========================= -->
+
+    <section
+      class="panel"
+      id="projects">
+
+      <div class="section-header">
+
+        <div>
+          <span class="section-label">
+            PROJECTS
+          </span>
+
+          <h2>
+            Track Your Project
+          </h2>
+
+          <p class="muted">
+            Monitor the progress of your website requests.
+          </p>
+        </div>
+
+        <a
+          href="request.html"
+          class="btn">
+          + New project
+        </a>
+
+      </div>
+
+
+      <!-- LOADING -->
+
+      <div id="loadingState">
+
+        <p class="muted">
+          Loading projects...
+        </p>
+
+      </div>
+
+
+      <!-- ERROR -->
+
+      <div
+        id="errorState"
+        class="hidden">
+      </div>
+
+
+      <!-- EMPTY -->
+
+      <div
+        id="emptyState"
+        class="hidden">
+
+        <h3>
+          No projects yet
+        </h3>
+
+        <p class="muted">
+          Your website requests will appear here.
+        </p>
+
+        <a
+          href="request.html"
+          class="btn">
+          Request a Website
+        </a>
+
+      </div>
+
+
+      <!-- PROJECT CARDS -->
+
+      <div id="projectList"></div>
+
+    </section>
+
+
+    <!-- =========================
+         ACCOUNT
+         ========================= -->
+
+    <section class="panel">
+
+      <div class="section-header">
+
+        <div>
+
+          <span class="section-label">
+            ACCOUNT
+          </span>
+
+          <h2>
+            Your Account
+          </h2>
+
+        </div>
+
+      </div>
+
+      <p
+        class="muted"
+        id="clientEmail">
+        Loading...
+      </p>
+
+    </section>
+
+  </main>
+
+
+  <!-- =========================
+       FOOTER
+       ========================= -->
+
+  <footer>
+
+    <p>
+      © 2026 WebCraft Studio
+      <span>
+        Design to code, made simple.
+      </span>
+    </p>
+
+  </footer>
+
+
+  <!-- =========================
+       CLIENT DASHBOARD JS
+       ========================= -->
+
+  <script
+    type="module"
+    src="../js/client-dashboard.js">
+  </script>
+
+</body>
+
+</html>
