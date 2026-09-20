@@ -1,0 +1,7 @@
+import { firebaseConfig } from './firebase-config.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js';
+import { getAuth,onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
+import { getFirestore,collection,query,where,getDocs,orderBy } from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js';
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),root=document.querySelector('#project');
+onAuthStateChanged(auth,async user=>{if(!user){location.href='../login.html';return;}try{const q=query(collection(db,'projects'),where('clientId','==',user.uid),orderBy('createdAt','desc'));const snap=await getDocs(q); if(snap.empty){root.innerHTML='<h2>No projects yet</h2><p class="muted">Submit your first website request to get started.</p><a class="btn" href="request.html">Start a project →</a>';return;} root.innerHTML=[...snap.docs].map(d=>{const p=d.data();return `<article class="panel"><span class="pill">${p.status||'Pending'}</span><h2>${escapeHtml(p.name||'Untitled project')}</h2><p>${escapeHtml(p.requirements||'No requirements added.')}</p><small>${p.createdAt?.toDate?p.createdAt.toDate().toLocaleString():'Submitted'}</small></article>`}).join('');}catch(e){root.innerHTML='<div class="notice error">Unable to load projects. Check your Firestore rules/indexes.</div>';}});
+function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
