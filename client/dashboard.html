@@ -3,28 +3,36 @@
 
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1">
 
   <title>Dashboard — WebCraft Studio</title>
 
-  <link rel="stylesheet" href="../css/style.css">
+  <link
+    rel="stylesheet"
+    href="../css/style.css">
 </head>
 
 <body data-protected="client">
 
-  <!-- =========================
-       HEADER
-       ========================= -->
-
+  <!-- HEADER -->
   <header class="topbar">
 
-    <a class="logo" href="../index.html">
+    <a
+      class="logo"
+      href="../index.html">
+
       <span>W</span>
       WebCraft Studio
+
     </a>
 
     <nav>
-      <a href="../index.html">Home</a>
+
+      <a href="../index.html">
+        Home
+      </a>
 
       <a href="dashboard.html">
         Dashboard
@@ -34,49 +42,54 @@
         My projects
       </a>
 
-      <a class="nav-btn" href="request.html">
+      <a
+        class="nav-btn"
+        href="request.html">
+
         New project
+
       </a>
 
       <button
         class="text-link"
         id="logout"
         type="button">
+
         Log out
+
       </button>
+
     </nav>
 
   </header>
 
 
-  <!-- =========================
-       MAIN
-       ========================= -->
-
+  <!-- MAIN -->
   <main class="page">
 
-    <!-- PAGE TITLE -->
-
+    <!-- TITLE -->
     <div class="section-title">
 
-      <span>CLIENT PORTAL</span>
+      <span>
+        CLIENT PORTAL
+      </span>
 
       <h1>
         Welcome,
-        <em id="clientName">Client</em>.
+        <em id="clientName">
+          Client
+        </em>.
       </h1>
 
       <p class="muted">
-        Manage your website requests and track development progress.
+        Manage your website requests
+        and track development progress.
       </p>
 
     </div>
 
 
-    <!-- =========================
-         QUICK STEPS
-         ========================= -->
-
+    <!-- STEPS -->
     <section class="steps">
 
       <article>
@@ -88,13 +101,16 @@
         </h3>
 
         <p>
-          Upload your screenshots and describe exactly what you want built.
+          Upload your screenshots and
+          describe exactly what you want built.
         </p>
 
         <a
           class="btn"
           href="request.html">
+
           Start project →
+
         </a>
 
       </article>
@@ -109,13 +125,16 @@
         </h3>
 
         <p>
-          See the current status and review the work from your portal.
+          See the current status and
+          review the work from your portal.
         </p>
 
         <a
           class="text-link"
           href="#projects">
+
           View projects →
+
         </a>
 
       </article>
@@ -130,7 +149,9 @@
         </h3>
 
         <p>
-          When development is complete, your finished files and preview are delivered here.
+          When development is complete,
+          your finished files and preview
+          are delivered here.
         </p>
 
       </article>
@@ -138,10 +159,7 @@
     </section>
 
 
-    <!-- =========================
-         TRACK YOUR PROJECT
-         ========================= -->
-
+    <!-- TRACK PROJECT -->
     <section
       class="panel"
       id="projects">
@@ -149,6 +167,7 @@
       <div class="section-header">
 
         <div>
+
           <span class="section-label">
             PROJECTS
           </span>
@@ -158,21 +177,25 @@
           </h2>
 
           <p class="muted">
-            Monitor the progress of your website requests.
+            Monitor the progress of
+            your website requests.
           </p>
+
         </div>
+
 
         <a
           href="request.html"
           class="btn">
+
           + New project
+
         </a>
 
       </div>
 
 
       <!-- LOADING -->
-
       <div id="loadingState">
 
         <p class="muted">
@@ -183,7 +206,6 @@
 
 
       <!-- ERROR -->
-
       <div
         id="errorState"
         class="hidden">
@@ -191,7 +213,6 @@
 
 
       <!-- EMPTY -->
-
       <div
         id="emptyState"
         class="hidden">
@@ -201,29 +222,28 @@
         </h3>
 
         <p class="muted">
-          Your website requests will appear here.
+          Your website requests
+          will appear here.
         </p>
 
         <a
           href="request.html"
           class="btn">
+
           Request a Website
+
         </a>
 
       </div>
 
 
-      <!-- PROJECT CARDS -->
-
+      <!-- PROJECT LIST -->
       <div id="projectList"></div>
 
     </section>
 
 
-    <!-- =========================
-         ACCOUNT
-         ========================= -->
-
+    <!-- ACCOUNT -->
     <section class="panel">
 
       <div class="section-header">
@@ -242,10 +262,13 @@
 
       </div>
 
+
       <p
         class="muted"
         id="clientEmail">
+
         Loading...
+
       </p>
 
     </section>
@@ -253,26 +276,22 @@
   </main>
 
 
-  <!-- =========================
-       FOOTER
-       ========================= -->
-
+  <!-- FOOTER -->
   <footer>
 
     <p>
       © 2026 WebCraft Studio
+
       <span>
         Design to code, made simple.
       </span>
+
     </p>
 
   </footer>
 
 
-  <!-- =========================
-       CLIENT DASHBOARD JS
-       ========================= -->
-
+  <!-- IMPORTANT -->
   <script
     type="module"
     src="../js/client-dashboard.js">
