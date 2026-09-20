@@ -1,31 +1,49 @@
-import { auth, db } from "./firebase-config.js";
+import { firebaseConfig } from "./firebase-config.js";
 
 import {
+  initializeApp,
+  getApps,
+  getApp
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+
+import {
+  getAuth,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
 import {
+  getFirestore,
   collection,
   query,
   where,
-  getDocs
+  getDocs,
+  doc,
+  getDoc
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 
 /* =========================================
-   WEBCRAFT STUDIO
-   CLIENT DASHBOARD
-   ========================================= */
+   FIREBASE
+========================================= */
+
+const app = getApps().length
+  ? getApp()
+  : initializeApp(firebaseConfig);
+
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 
-const projectList =
-  document.getElementById("projectList") ||
-  document.getElementById("projectsList") ||
-  document.getElementById("projects");
+/* =========================================
+   ELEMENTS
+========================================= */
 
-const emptyState =
-  document.getElementById("emptyState");
+const clientName =
+  document.getElementById("clientName");
+
+const clientEmail =
+  document.getElementById("clientEmail");
 
 const loadingState =
   document.getElementById("loadingState");
@@ -33,44 +51,38 @@ const loadingState =
 const errorState =
   document.getElementById("errorState");
 
-const userName =
-  document.getElementById("userName") ||
-  document.getElementById("clientName");
+const emptyState =
+  document.getElementById("emptyState");
 
-const userEmail =
-  document.getElementById("userEmail") ||
-  document.getElementById("clientEmail");
+const projectList =
+  document.getElementById("projectList");
 
 const logoutButton =
-  document.getElementById("logoutBtn") ||
   document.getElementById("logout");
 
 
 /* =========================================
    HELPERS
-   ========================================= */
-
-function show(element) {
-  if (element) {
-    element.classList.remove("hidden");
-    element.style.display = "";
-  }
-}
+========================================= */
 
 function hide(element) {
-  if (element) {
-    element.classList.add("hidden");
-    element.style.display = "none";
-  }
+  if (!element) return;
+
+  element.classList.add("hidden");
+  element.style.display = "none";
+}
+
+
+function show(element) {
+  if (!element) return;
+
+  element.classList.remove("hidden");
+  element.style.display = "";
 }
 
 
 function escapeHTML(value) {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  return String(value)
+  return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -79,299 +91,195 @@ function escapeHTML(value) {
 }
 
 
-function formatDate(timestamp) {
-  if (!timestamp) {
+function formatDate(value) {
+
+  if (!value) {
     return "No date";
   }
 
   try {
-    let date;
 
-    if (timestamp.toDate) {
-      date = timestamp.toDate();
-    } else if (timestamp instanceof Date) {
-      date = timestamp;
-    } else {
-      date = new Date(timestamp);
-    }
+    const date =
+      typeof value.toDate === "function"
+        ? value.toDate()
+        : new Date(value);
 
     if (isNaN(date.getTime())) {
       return "No date";
     }
 
-    return date.toLocaleDateString("en-PH", {
-      year: "numeric",
-      month: "short",
-      day: "numeric"
-    });
+    return date.toLocaleDateString(
+      "en-PH",
+      {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      }
+    );
 
-  } catch (error) {
+  } catch {
     return "No date";
   }
 }
 
 
-function getStatusClass(status) {
-  const value = String(status || "Pending").toLowerCase();
+function statusClass(status) {
 
-  if (value === "completed") {
+  const value =
+    String(status || "Pending")
+      .toLowerCase();
+
+  if (value === "completed")
     return "status-completed";
-  }
 
-  if (value === "coding") {
+  if (value === "coding")
     return "status-coding";
-  }
 
-  if (value === "review") {
+  if (value === "review")
     return "status-review";
-  }
 
-  if (value === "pending") {
+  if (value === "pending")
     return "status-pending";
-  }
 
   return "status-default";
 }
 
 
 /* =========================================
-   LOADING / ERROR
-   ========================================= */
-
-function showLoading() {
-  hide(emptyState);
-  hide(errorState);
-  show(loadingState);
-
-  if (projectList) {
-    projectList.innerHTML = "";
-  }
-}
-
-
-function showEmpty() {
-  hide(loadingState);
-  hide(errorState);
-  show(emptyState);
-
-  if (projectList) {
-    projectList.innerHTML = "";
-  }
-}
-
-
-function showError(message) {
-  hide(loadingState);
-  hide(emptyState);
-  show(errorState);
-
-  if (errorState) {
-    errorState.innerHTML = `
-      <div class="error-box">
-        <strong>Unable to load projects</strong>
-        <p>${escapeHTML(message)}</p>
-        <button
-          type="button"
-          class="btn"
-          id="retryProjects"
-        >
-          Try Again
-        </button>
-      </div>
-    `;
-
-    const retryButton =
-      document.getElementById("retryProjects");
-
-    if (retryButton) {
-      retryButton.addEventListener(
-        "click",
-        loadProjects
-      );
-    }
-  }
-}
-
-
-/* =========================================
-   USER INFORMATION
-   ========================================= */
+   USER INFO
+========================================= */
 
 function displayUser(user) {
-  if (userName) {
-    userName.textContent =
+
+  if (clientName) {
+
+    clientName.textContent =
       user.displayName ||
       user.email?.split("@")[0] ||
       "Client";
   }
 
-  if (userEmail) {
-    userEmail.textContent =
+  if (clientEmail) {
+
+    clientEmail.textContent =
       user.email || "";
   }
 }
 
 
 /* =========================================
-   RENDER PROJECTS
-   ========================================= */
+   ADMIN LINK
+========================================= */
 
-function renderProjects(projects) {
+function addAdminLink() {
 
-  hide(loadingState);
-  hide(errorState);
+  const nav = document.querySelector("header nav");
 
-  if (!projects.length) {
-    showEmpty();
+  if (!nav) return;
+
+  if (document.getElementById("adminDashboardLink")) {
     return;
   }
 
-  hide(emptyState);
+  const link =
+    document.createElement("a");
 
-  if (!projectList) {
-    console.warn(
-      "WebCraft Studio: projectList element was not found."
-    );
-    return;
-  }
+  link.id = "adminDashboardLink";
+  link.href = "../admin/dashboard.html";
+  link.textContent = "Admin";
 
-  projectList.innerHTML = "";
-
-  projects.forEach((project) => {
-
-    const id = project.id;
-    const data = project.data;
-
-    const title =
-      data.title ||
-      data.projectName ||
-      data.name ||
-      "Untitled Website";
-
-    const description =
-      data.description ||
-      data.requirements ||
-      "No project description.";
-
-    const status =
-      data.status ||
-      "Pending";
-
-    const createdAt =
-      data.createdAt ||
-      data.created_at ||
-      null;
-
-    const statusClass =
-      getStatusClass(status);
-
-    const card = document.createElement("article");
-
-    card.className = "project-card";
-
-    card.innerHTML = `
-      <div class="project-card-top">
-
-        <div>
-          <h3>
-            ${escapeHTML(title)}
-          </h3>
-
-          <p class="project-description">
-            ${escapeHTML(description)}
-          </p>
-        </div>
-
-        <span class="status-badge ${statusClass}">
-          ${escapeHTML(status)}
-        </span>
-
-      </div>
-
-      <div class="project-meta">
-
-        <span>
-          Created:
-          ${escapeHTML(formatDate(createdAt))}
-        </span>
-
-        <span>
-          Project ID:
-          ${escapeHTML(id)}
-        </span>
-
-      </div>
-
-      <div class="project-actions">
-
-        <a
-          class="btn"
-          href="project.html?id=${encodeURIComponent(id)}"
-        >
-          Track Project →
-        </a>
-
-      </div>
-    `;
-
-    projectList.appendChild(card);
-  });
+  nav.insertBefore(
+    link,
+    logoutButton || null
+  );
 }
 
 
 /* =========================================
-   LOAD CLIENT PROJECTS
-   ========================================= */
+   CHECK USER ROLE
+========================================= */
 
-async function loadProjects() {
+async function checkUserRole(user) {
 
-  showLoading();
+  try {
 
-  const user = auth.currentUser;
+    const userRef =
+      doc(db, "users", user.uid);
 
-  if (!user) {
-    console.warn(
-      "No authenticated Firebase user."
+    const userSnap =
+      await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      console.warn(
+        "No Firestore user document found."
+      );
+      return;
+    }
+
+    const data =
+      userSnap.data();
+
+    console.log(
+      "WebCraft role:",
+      data.role
     );
 
-    window.location.href = "../login.html";
-    return;
+    if (data.role === "admin") {
+      addAdminLink();
+    }
+
+  } catch (error) {
+
+    console.error(
+      "Role check failed:",
+      error
+    );
+  }
+}
+
+
+/* =========================================
+   LOAD PROJECTS
+========================================= */
+
+async function loadProjects(user) {
+
+  show(loadingState);
+
+  hide(errorState);
+  hide(emptyState);
+
+  if (projectList) {
+    projectList.innerHTML = "";
   }
 
   try {
 
     console.log(
-      "Loading projects for UID:",
+      "Loading projects for:",
       user.uid
     );
 
     /*
       IMPORTANT:
 
-      Firestore query is restricted to the
-      currently authenticated user's UID.
+      Firestore project document:
 
-      Your Firestore document must look like:
-
-      projects
-        └── projectID
-              ├── clientId: USER_UID
-              ├── title: ...
-              ├── status: ...
-              └── createdAt: ...
+      clientId = Firebase Authentication UID
     */
 
     const projectsRef =
       collection(db, "projects");
 
-    const projectsQuery = query(
-      projectsRef,
-      where(
-        "clientId",
-        "==",
-        user.uid
-      )
-    );
+    const projectsQuery =
+      query(
+        projectsRef,
+        where(
+          "clientId",
+          "==",
+          user.uid
+        )
+      );
 
     const snapshot =
       await getDocs(projectsQuery);
@@ -381,100 +289,190 @@ async function loadProjects() {
       snapshot.size
     );
 
+    hide(loadingState);
+
+    if (snapshot.empty) {
+
+      show(emptyState);
+
+      return;
+    }
+
     const projects = [];
 
-    snapshot.forEach((docSnapshot) => {
+    snapshot.forEach((projectDoc) => {
 
       projects.push({
-        id: docSnapshot.id,
-        data: docSnapshot.data()
+        id: projectDoc.id,
+        data: projectDoc.data()
       });
 
     });
 
-    /*
-      Sort locally instead of using Firestore
-      orderBy(). This avoids needing a composite
-      Firestore index.
-    */
 
+    /* Sort locally */
     projects.sort((a, b) => {
 
-      const dateA =
-        a.data.createdAt?.toMillis?.() ||
-        new Date(
-          a.data.createdAt || 0
-        ).getTime() ||
-        0;
+      const aDate =
+        a.data.createdAt?.toMillis?.() || 0;
 
-      const dateB =
-        b.data.createdAt?.toMillis?.() ||
-        new Date(
-          b.data.createdAt || 0
-        ).getTime() ||
-        0;
+      const bDate =
+        b.data.createdAt?.toMillis?.() || 0;
 
-      return dateB - dateA;
+      return bDate - aDate;
     });
 
-    renderProjects(projects);
+
+    /* Render */
+    projects.forEach((project) => {
+
+      const data =
+        project.data;
+
+      const title =
+        data.title ||
+        data.projectName ||
+        data.name ||
+        "Untitled Website";
+
+      const description =
+        data.description ||
+        data.requirements ||
+        "Website project";
+
+      const status =
+        data.status ||
+        "Pending";
+
+      const card =
+        document.createElement("article");
+
+      card.className =
+        "project-card";
+
+      card.innerHTML = `
+        <div class="project-card-top">
+
+          <div>
+            <h3>
+              ${escapeHTML(title)}
+            </h3>
+
+            <p class="project-description">
+              ${escapeHTML(description)}
+            </p>
+          </div>
+
+          <span class="status-badge ${statusClass(status)}">
+            ${escapeHTML(status)}
+          </span>
+
+        </div>
+
+        <div class="project-meta">
+
+          <span>
+            Created:
+            ${escapeHTML(
+              formatDate(data.createdAt)
+            )}
+          </span>
+
+        </div>
+
+        <div class="project-actions">
+
+          <a
+            class="btn"
+            href="project.html?id=${encodeURIComponent(project.id)}">
+            Track Project →
+          </a>
+
+        </div>
+      `;
+
+      projectList.appendChild(card);
+    });
 
   } catch (error) {
 
     console.error(
-      "Unable to load projects:",
+      "PROJECT LOAD ERROR:",
       error
     );
 
+    hide(loadingState);
+    hide(emptyState);
+
+    show(errorState);
+
     let message =
-      "Something went wrong while loading your projects.";
+      "Unable to load your projects.";
 
     if (
       error.code ===
       "permission-denied"
     ) {
+
       message =
-        "Firestore denied access. Make sure the project's clientId exactly matches your Firebase Auth UID.";
+        "Firestore denied access. Make sure clientId is the same as your Firebase Auth UID.";
     }
 
     else if (
       error.code ===
       "failed-precondition"
     ) {
-      message =
-        "Firestore requires an index or has a configuration problem. This version avoids orderBy(), so check your Firestore setup.";
-    }
 
-    else if (
-      error.code ===
-      "unavailable"
-    ) {
       message =
-        "Firebase is temporarily unavailable. Check your internet connection and try again.";
+        "Firestore configuration/index problem.";
     }
 
     else if (error.message) {
-      message = error.message;
+
+      message =
+        error.message;
     }
 
-    showError(message);
+    errorState.innerHTML = `
+      <div class="error-box">
+
+        <strong>
+          Unable to load projects
+        </strong>
+
+        <p>
+          ${escapeHTML(message)}
+        </p>
+
+        <button
+          class="btn"
+          id="retryProjects"
+          type="button">
+          Try Again
+        </button>
+
+      </div>
+    `;
+
+    document
+      .getElementById("retryProjects")
+      ?.addEventListener(
+        "click",
+        () => loadProjects(user)
+      );
   }
 }
 
 
 /* =========================================
-   AUTH STATE
-   ========================================= */
+   AUTH
+========================================= */
 
 onAuthStateChanged(
   auth,
   async (user) => {
 
     if (!user) {
-
-      console.log(
-        "User is not logged in."
-      );
 
       window.location.href =
         "../login.html";
@@ -483,20 +481,27 @@ onAuthStateChanged(
     }
 
     console.log(
-      "Authenticated user:",
+      "Logged in:",
+      user.email
+    );
+
+    console.log(
+      "UID:",
       user.uid
     );
 
     displayUser(user);
 
-    await loadProjects();
+    await checkUserRole(user);
+
+    await loadProjects(user);
   }
 );
 
 
 /* =========================================
    LOGOUT
-   ========================================= */
+========================================= */
 
 if (logoutButton) {
 
@@ -514,22 +519,193 @@ if (logoutButton) {
       } catch (error) {
 
         console.error(
-          "Logout failed:",
+          "Logout error:",
           error
         );
 
         alert(
-          "Unable to log out. Please try again."
+          "Unable to log out."
         );
       }
     }
   );
 }
+        <b>02</b>
+
+        <h3>
+          Track your project
+        </h3>
+
+        <p>
+          See the current status and review the work from your portal.
+        </p>
+
+        <a
+          class="text-link"
+          href="#projects">
+          View projects →
+        </a>
+
+      </article>
 
 
-/* =========================================
-   GLOBAL RETRY
-   ========================================= */
+      <article>
 
-window.loadProjects =
-  loadProjects;
+        <b>03</b>
+
+        <h3>
+          Get the website
+        </h3>
+
+        <p>
+          When development is complete, your finished files and preview are delivered here.
+        </p>
+
+      </article>
+
+    </section>
+
+
+    <!-- =========================
+         TRACK YOUR PROJECT
+         ========================= -->
+
+    <section
+      class="panel"
+      id="projects">
+
+      <div class="section-header">
+
+        <div>
+          <span class="section-label">
+            PROJECTS
+          </span>
+
+          <h2>
+            Track Your Project
+          </h2>
+
+          <p class="muted">
+            Monitor the progress of your website requests.
+          </p>
+        </div>
+
+        <a
+          href="request.html"
+          class="btn">
+          + New project
+        </a>
+
+      </div>
+
+
+      <!-- LOADING -->
+
+      <div id="loadingState">
+
+        <p class="muted">
+          Loading projects...
+        </p>
+
+      </div>
+
+
+      <!-- ERROR -->
+
+      <div
+        id="errorState"
+        class="hidden">
+      </div>
+
+
+      <!-- EMPTY -->
+
+      <div
+        id="emptyState"
+        class="hidden">
+
+        <h3>
+          No projects yet
+        </h3>
+
+        <p class="muted">
+          Your website requests will appear here.
+        </p>
+
+        <a
+          href="request.html"
+          class="btn">
+          Request a Website
+        </a>
+
+      </div>
+
+
+      <!-- PROJECT CARDS -->
+
+      <div id="projectList"></div>
+
+    </section>
+
+
+    <!-- =========================
+         ACCOUNT
+         ========================= -->
+
+    <section class="panel">
+
+      <div class="section-header">
+
+        <div>
+
+          <span class="section-label">
+            ACCOUNT
+          </span>
+
+          <h2>
+            Your Account
+          </h2>
+
+        </div>
+
+      </div>
+
+      <p
+        class="muted"
+        id="clientEmail">
+        Loading...
+      </p>
+
+    </section>
+
+  </main>
+
+
+  <!-- =========================
+       FOOTER
+       ========================= -->
+
+  <footer>
+
+    <p>
+      © 2026 WebCraft Studio
+      <span>
+        Design to code, made simple.
+      </span>
+    </p>
+
+  </footer>
+
+
+  <!-- =========================
+       CLIENT DASHBOARD JS
+       ========================= -->
+
+  <script
+    type="module"
+    src="../js/client-dashboard.js">
+  </script>
+
+</body>
+
+</html>
