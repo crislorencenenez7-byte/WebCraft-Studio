@@ -32,12 +32,7 @@ const app = getApps().length
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-
-/* =========================================================
-   DOM
-========================================================= */
-
-const projectContainer =
+const root =
   document.getElementById("project");
 
 
@@ -55,21 +50,32 @@ function escapeHTML(value) {
 }
 
 
+function getProjectId() {
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  return params.get("id")?.trim() || null;
+}
+
+
 function getDate(value) {
   if (!value) return null;
 
   try {
-    if (typeof value.toDate === "function") {
+    if (
+      typeof value.toDate === "function"
+    ) {
       return value.toDate();
     }
 
-    const date = new Date(value);
+    const date =
+      new Date(value);
 
-    if (isNaN(date.getTime())) {
-      return null;
-    }
-
-    return date;
+    return isNaN(date.getTime())
+      ? null
+      : date;
 
   } catch {
     return null;
@@ -78,59 +84,60 @@ function getDate(value) {
 
 
 function formatDate(value) {
-  const date = getDate(value);
+  const date =
+    getDate(value);
 
   if (!date) {
     return "No date";
   }
 
-  return date.toLocaleDateString("en-PH", {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
+  return date.toLocaleDateString(
+    "en-PH",
+    {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    }
+  );
 }
 
 
-function getStatusClass(status) {
+function statusClass(status) {
 
   const value =
     String(status || "Pending")
       .toLowerCase()
       .trim();
 
-  if (value === "completed") {
+  if (value === "completed")
     return "status-completed";
-  }
 
-  if (value === "coding") {
+  if (value === "coding")
     return "status-coding";
-  }
 
-  if (value === "review") {
+  if (value === "review")
     return "status-review";
-  }
 
-  if (value === "pending") {
+  if (value === "pending")
     return "status-pending";
-  }
 
   return "status-default";
 }
 
 
 /* =========================================================
-   PROJECT ID
+   LOADING
 ========================================================= */
 
-function getProjectId() {
+function showLoading() {
 
-  const params =
-    new URLSearchParams(
-      window.location.search
-    );
+  if (!root) return;
 
-  return params.get("id")?.trim() || null;
+  root.innerHTML = `
+    <p class="muted">
+      Loading project...
+    </p>
+  `;
 }
 
 
@@ -149,11 +156,9 @@ function showError(
     error
   );
 
-  if (!projectContainer) {
-    return;
-  }
+  if (!root) return;
 
-  projectContainer.innerHTML = `
+  root.innerHTML = `
     <div class="error-box">
 
       <strong>
@@ -190,35 +195,16 @@ function showError(
     ?.addEventListener(
       "click",
       () => {
-        const user = auth.currentUser;
+
+        const user =
+          auth.currentUser;
 
         if (user) {
           loadProject(user);
         }
+
       }
     );
-}
-
-
-/* =========================================================
-   LOADING
-========================================================= */
-
-function showLoading() {
-
-  if (!projectContainer) {
-    return;
-  }
-
-  projectContainer.innerHTML = `
-    <div class="loading-state">
-
-      <p class="muted">
-        Loading project...
-      </p>
-
-    </div>
-  `;
 }
 
 
@@ -226,7 +212,9 @@ function showLoading() {
    LOAD FILES
 ========================================================= */
 
-async function loadFiles(projectId) {
+async function loadProjectFiles(
+  projectId
+) {
 
   const filesRef =
     collection(
@@ -236,6 +224,12 @@ async function loadFiles(projectId) {
       "files"
     );
 
+  /*
+    IMPORTANT:
+    No orderBy().
+    Files are sorted locally.
+  */
+
   const snapshot =
     await getDocs(filesRef);
 
@@ -244,9 +238,12 @@ async function loadFiles(projectId) {
   snapshot.forEach(
     (fileDoc) => {
 
+      const data =
+        fileDoc.data();
+
       files.push({
         id: fileDoc.id,
-        data: fileDoc.data()
+        data
       });
 
     }
@@ -257,10 +254,16 @@ async function loadFiles(projectId) {
     (a, b) => {
 
       const aDate =
-        getDate(a.data.createdAt);
+        getDate(
+          a.data.updatedAt ||
+          a.data.createdAt
+        );
 
       const bDate =
-        getDate(b.data.createdAt);
+        getDate(
+          b.data.updatedAt ||
+          b.data.createdAt
+        );
 
       return (
         (bDate?.getTime() || 0) -
@@ -279,7 +282,9 @@ async function loadFiles(projectId) {
    LOAD DESIGNS
 ========================================================= */
 
-async function loadDesigns(projectId) {
+async function loadProjectDesigns(
+  projectId
+) {
 
   const designsRef =
     collection(
@@ -288,6 +293,10 @@ async function loadDesigns(projectId) {
       projectId,
       "designs"
     );
+
+  /*
+    No orderBy().
+  */
 
   const snapshot =
     await getDocs(designsRef);
@@ -306,25 +315,257 @@ async function loadDesigns(projectId) {
   );
 
 
-  designs.sort(
-    (a, b) => {
+  return designs;
+}
 
-      const aDate =
-        getDate(a.data.createdAt);
 
-      const bDate =
-        getDate(b.data.createdAt);
+/* =========================================================
+   DOWNLOAD WEBSITE
+========================================================= */
 
-      return (
-        (bDate?.getTime() || 0) -
-        (aDate?.getTime() || 0)
+async function downloadWebsite(
+  projectId,
+  projectName
+) {
+
+  const button =
+    document.getElementById(
+      "downloadProject"
+    );
+
+  if (button) {
+    button.disabled = true;
+    button.textContent =
+      "Preparing download...";
+  }
+
+
+  try {
+
+    /*
+      Load actual code files
+      from Firestore.
+    */
+
+    const files =
+      await loadProjectFiles(
+        projectId
+      );
+
+
+    const codeFiles =
+      files.filter(
+        (file) =>
+          typeof file.data.content ===
+          "string"
+      );
+
+
+    if (
+      codeFiles.length === 0
+    ) {
+
+      throw new Error(
+        "No website code has been saved yet."
       );
 
     }
-  );
 
 
-  return designs;
+    /*
+      Load JSZip dynamically.
+      This keeps the main page lightweight.
+    */
+
+    if (
+      typeof window.JSZip ===
+      "undefined"
+    ) {
+
+      await new Promise(
+        (resolve, reject) => {
+
+          const script =
+            document.createElement(
+              "script"
+            );
+
+          script.src =
+            "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+
+          script.onload =
+            resolve;
+
+          script.onerror =
+            () =>
+              reject(
+                new Error(
+                  "Unable to load ZIP library."
+                )
+              );
+
+          document.head.appendChild(
+            script
+          );
+
+        }
+      );
+
+    }
+
+
+    const zip =
+      new window.JSZip();
+
+
+    /*
+      Add every code file.
+    */
+
+    codeFiles.forEach(
+      (file) => {
+
+        const data =
+          file.data;
+
+        const fileName =
+          data.name ||
+          data.fileName ||
+          file.id;
+
+        /*
+          Only allow normal website
+          file paths.
+        */
+
+        const safeName =
+          String(fileName)
+            .replace(/\\/g, "/")
+            .replace(/^\/+/, "")
+            .replace(/\.\.\//g, "");
+
+
+        zip.file(
+          safeName,
+          data.content
+        );
+
+      }
+    );
+
+
+    /*
+      Generate ZIP.
+    */
+
+    const blob =
+      await zip.generateAsync({
+        type: "blob"
+      });
+
+
+    /*
+      Create browser download.
+    */
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
+
+    const anchor =
+      document.createElement(
+        "a"
+      );
+
+    anchor.href =
+      url;
+
+    anchor.download =
+      `${sanitizeFileName(
+        projectName
+      )}.zip`;
+
+    document.body.appendChild(
+      anchor
+    );
+
+    anchor.click();
+
+    anchor.remove();
+
+    setTimeout(
+      () => {
+        URL.revokeObjectURL(
+          url
+        );
+      },
+      1000
+    );
+
+
+    if (button) {
+
+      button.disabled = false;
+
+      button.textContent =
+        "📦 Download Website";
+
+    }
+
+  } catch (error) {
+
+    console.error(
+      "DOWNLOAD ERROR:",
+      error
+    );
+
+
+    if (button) {
+
+      button.disabled = false;
+
+      button.textContent =
+        "📦 Download Website";
+
+    }
+
+
+    alert(
+      error.message ||
+      "Unable to create website ZIP."
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   SAFE FILE NAME
+========================================================= */
+
+function sanitizeFileName(
+  value
+) {
+
+  return String(
+    value ||
+    "WebCraft-Website"
+  )
+    .replace(
+      /[<>:"/\\|?*\x00-\x1F]/g,
+      ""
+    )
+    .trim()
+    .replace(
+      /\s+/g,
+      "-"
+    )
+    .slice(
+      0,
+      80
+    ) || "WebCraft-Website";
 }
 
 
@@ -343,11 +584,13 @@ async function renderProject(
     data.projectName ||
     "Untitled Website";
 
-  const description =
-    data.description ||
+
+  const requirements =
     data.requirements ||
+    data.description ||
     data.details ||
     "No requirements provided.";
+
 
   const status =
     data.status ||
@@ -359,50 +602,57 @@ async function renderProject(
 
 
   /*
-    Load subcollections separately.
-
-    If one fails, the main project can
-    still be displayed.
+    Load files.
   */
 
   try {
+
     files =
-      await loadFiles(projectId);
+      await loadProjectFiles(
+        projectId
+      );
+
   } catch (error) {
 
     console.warn(
-      "Unable to load files:",
+      "Files could not be loaded:",
       error
     );
 
   }
 
+
+  /*
+    Load designs.
+  */
 
   try {
+
     designs =
-      await loadDesigns(projectId);
+      await loadProjectDesigns(
+        projectId
+      );
+
   } catch (error) {
 
     console.warn(
-      "Unable to load designs:",
+      "Designs could not be loaded:",
       error
     );
 
-  }
-
-
-  if (!projectContainer) {
-    return;
   }
 
 
   /* =======================================================
-     FILES HTML
+     FILE LIST
   ======================================================= */
 
   let filesHTML = "";
 
-  if (files.length === 0) {
+
+  if (
+    files.length === 0
+  ) {
 
     filesHTML = `
       <p class="muted">
@@ -414,92 +664,76 @@ async function renderProject(
 
     filesHTML =
       files
-        .map((file) => {
+        .map(
+          (file) => {
 
-          const fileData =
-            file.data;
+            const fileData =
+              file.data;
 
-          const fileName =
-            fileData.name ||
-            fileData.fileName ||
-            fileData.filename ||
-            "Website File";
-
-          const fileURL =
-            fileData.url ||
-            fileData.downloadURL ||
-            fileData.downloadUrl ||
-            fileData.href ||
-            "";
+            const fileName =
+              fileData.name ||
+              fileData.fileName ||
+              file.id;
 
 
-          return `
-            <div class="project-file"
-              style="
-                display:flex;
-                justify-content:space-between;
-                align-items:center;
-                gap:16px;
-                padding:14px 0;
-                border-bottom:1px solid rgba(255,255,255,.08);
-              ">
+            return `
+              <div
+                class="project-file"
+                style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:center;
+                  gap:16px;
+                  padding:14px 0;
+                  border-bottom:1px solid rgba(255,255,255,.08);
+                "
+              >
 
-              <div>
+                <div>
 
-                <strong>
-                  ${escapeHTML(fileName)}
-                </strong>
+                  <strong>
+                    ${escapeHTML(
+                      fileName
+                    )}
+                  </strong>
 
-                ${
-                  fileData.createdAt
-                    ? `
-                      <p class="muted">
-                        ${escapeHTML(
-                          formatDate(
-                            fileData.createdAt
-                          )
-                        )}
-                      </p>
-                    `
-                    : ""
-                }
+                  ${
+                    fileData.updatedAt
+                      ? `
+                        <p class="muted">
+                          Updated:
+                          ${escapeHTML(
+                            formatDate(
+                              fileData.updatedAt
+                            )
+                          )}
+                        </p>
+                      `
+                      : ""
+                  }
+
+                </div>
 
               </div>
+            `;
 
-              ${
-                fileURL
-                  ? `
-                    <a
-                      class="btn"
-                      href="${escapeHTML(fileURL)}"
-                      target="_blank"
-                      rel="noopener">
-                      Open →
-                    </a>
-                  `
-                  : `
-                    <span class="muted">
-                      No download link
-                    </span>
-                  `
-              }
-
-            </div>
-          `;
-
-        })
+          }
+        )
         .join("");
 
   }
 
 
   /* =======================================================
-     DESIGNS HTML
+     DESIGN LIST
   ======================================================= */
 
   let designsHTML = "";
 
-  if (designs.length === 0) {
+
+  if (
+    designs.length === 0
+  ) {
 
     designsHTML = `
       <p class="muted">
@@ -511,79 +745,154 @@ async function renderProject(
 
     designsHTML =
       designs
-        .map((design) => {
+        .map(
+          (design) => {
 
-          const designData =
-            design.data;
+            const designData =
+              design.data;
 
-          const name =
-            designData.name ||
-            designData.title ||
-            designData.fileName ||
-            "Design";
+            const name =
+              designData.name ||
+              designData.title ||
+              designData.fileName ||
+              "Design";
 
-          const imageURL =
-            designData.url ||
-            designData.image ||
-            designData.imageUrl ||
-            designData.downloadURL ||
-            "";
+            const image =
+              designData.url ||
+              designData.image ||
+              designData.imageUrl ||
+              designData.downloadURL ||
+              "";
 
 
-          return `
-            <div
-              style="
-                margin-bottom:20px;
-              ">
+            return `
+              <div
+                style="
+                  margin-bottom:20px;
+                "
+              >
 
-              ${
-                imageURL
-                  ? `
-                    <a
-                      href="${escapeHTML(imageURL)}"
-                      target="_blank"
-                      rel="noopener">
+                ${
+                  image
+                    ? `
+                      <a
+                        href="${escapeHTML(
+                          image
+                        )}"
+                        target="_blank"
+                        rel="noopener">
 
-                      <img
-                        src="${escapeHTML(imageURL)}"
-                        alt="${escapeHTML(name)}"
-                        loading="lazy"
-                        style="
-                          width:100%;
-                          max-width:700px;
-                          border-radius:12px;
-                          display:block;
-                        ">
+                        <img
+                          src="${escapeHTML(
+                            image
+                          )}"
+                          alt="${escapeHTML(
+                            name
+                          )}"
+                          loading="lazy"
+                          style="
+                            width:100%;
+                            max-width:700px;
+                            border-radius:12px;
+                            display:block;
+                          "
+                        >
 
-                    </a>
-                  `
-                  : ""
-              }
+                      </a>
+                    `
+                    : ""
+                }
 
-              <p>
-                <strong>
-                  ${escapeHTML(name)}
-                </strong>
-              </p>
+                <p>
+                  <strong>
+                    ${escapeHTML(
+                      name
+                    )}
+                  </strong>
+                </p>
 
-            </div>
-          `;
+              </div>
+            `;
 
-        })
+          }
+        )
         .join("");
 
   }
 
 
   /* =======================================================
-     MAIN PROJECT PAGE
+     DOWNLOAD BUTTON
   ======================================================= */
 
-  projectContainer.innerHTML = `
+  const isCompleted =
+    String(status)
+      .toLowerCase()
+      .trim() ===
+    "completed";
+
+
+  const downloadButton =
+    isCompleted
+      ? `
+        <div
+          style="
+            margin:30px 0;
+            padding:20px;
+            border-radius:14px;
+            border:1px solid rgba(255,215,0,.18);
+          "
+        >
+
+          <h3>
+            Your Website
+          </h3>
+
+          <p class="muted">
+            Your website is complete.
+            Download all saved website files as a ZIP.
+          </p>
+
+          <button
+            id="downloadProject"
+            class="btn"
+            type="button">
+
+            📦 Download Website
+
+          </button>
+
+        </div>
+      `
+      : `
+        <div
+          style="
+            margin:30px 0;
+            padding:20px;
+            border-radius:14px;
+          "
+        >
+
+          <h3>
+            Website Delivery
+          </h3>
+
+          <p class="muted">
+            The download button will appear here
+            when your project is marked Completed.
+          </p>
+
+        </div>
+      `;
+
+
+  /* =======================================================
+     MAIN HTML
+  ======================================================= */
+
+  root.innerHTML = `
 
     <div>
-
-      <!-- PROJECT HEADER -->
 
       <div
         style="
@@ -593,7 +902,8 @@ async function renderProject(
           gap:20px;
           flex-wrap:wrap;
           margin-bottom:30px;
-        ">
+        "
+      >
 
         <div>
 
@@ -602,58 +912,70 @@ async function renderProject(
           </span>
 
           <h2>
-            ${escapeHTML(title)}
+            ${escapeHTML(
+              title
+            )}
           </h2>
 
         </div>
 
-        <span
-          class="status-badge ${getStatusClass(status)}">
 
-          ${escapeHTML(status)}
+        <span
+          class="status-badge ${statusClass(
+            status
+          )}"
+        >
+
+          ${escapeHTML(
+            status
+          )}
 
         </span>
 
       </div>
 
 
-      <!-- PROJECT DETAILS -->
-
       <div
         style="
           margin-bottom:30px;
-        ">
+        "
+      >
 
         <h3>
           Requirements
         </h3>
 
         <p class="muted">
-          ${escapeHTML(description)}
+          ${escapeHTML(
+            requirements
+          )}
         </p>
 
       </div>
 
-
-      <!-- PROJECT META -->
 
       <div
         class="project-meta"
         style="
           display:grid;
           gap:8px;
-          margin-bottom:30px;
-        ">
+          margin-bottom:20px;
+        "
+      >
 
         <span>
           <strong>Project ID:</strong>
-          ${escapeHTML(projectId)}
+          ${escapeHTML(
+            projectId
+          )}
         </span>
 
         <span>
           <strong>Created:</strong>
           ${escapeHTML(
-            formatDate(data.createdAt)
+            formatDate(
+              data.createdAt
+            )
           )}
         </span>
 
@@ -675,12 +997,14 @@ async function renderProject(
       </div>
 
 
-      <!-- DESIGNS -->
+      ${downloadButton}
+
 
       <div
         style="
           margin-bottom:35px;
-        ">
+        "
+      >
 
         <h3>
           Your Designs
@@ -691,12 +1015,10 @@ async function renderProject(
       </div>
 
 
-      <!-- FILES -->
-
       <div>
 
         <h3>
-          Delivered Files
+          Website Files
         </h3>
 
         ${filesHTML}
@@ -704,12 +1026,11 @@ async function renderProject(
       </div>
 
 
-      <!-- BACK -->
-
       <div
         style="
           margin-top:35px;
-        ">
+        "
+      >
 
         <a
           class="btn"
@@ -723,6 +1044,32 @@ async function renderProject(
 
     </div>
   `;
+
+
+  /* =======================================================
+     DOWNLOAD BUTTON EVENT
+  ======================================================= */
+
+  if (isCompleted) {
+
+    document
+      .getElementById(
+        "downloadProject"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+
+          downloadWebsite(
+            projectId,
+            title
+          );
+
+        }
+      );
+
+  }
+
 }
 
 
@@ -730,7 +1077,9 @@ async function renderProject(
    LOAD PROJECT
 ========================================================= */
 
-async function loadProject(user) {
+async function loadProject(
+  user
+) {
 
   showLoading();
 
@@ -739,17 +1088,12 @@ async function loadProject(user) {
     getProjectId();
 
 
-  /* -------------------------------------------------------
-     NO PROJECT ID
-  ------------------------------------------------------- */
+  /*
+    No ID means user clicked
+    "My project" directly.
+  */
 
   if (!projectId) {
-
-    /*
-      If the user clicked "My project" directly,
-      return to the project list instead of showing
-      a confusing Firebase error.
-    */
 
     window.location.href =
       "dashboard.html#projects";
@@ -765,7 +1109,7 @@ async function loadProject(user) {
     );
 
     console.log(
-      "UID:",
+      "Logged-in UID:",
       user.uid
     );
 
@@ -775,9 +1119,13 @@ async function loadProject(user) {
     );
 
 
-    /* -----------------------------------------------------
-       DIRECT FIRESTORE LOOKUP
-    ----------------------------------------------------- */
+    /*
+      DIRECT DOCUMENT LOOKUP.
+
+      No query().
+      No orderBy().
+      No index needed.
+    */
 
     const projectRef =
       doc(
@@ -788,14 +1136,16 @@ async function loadProject(user) {
 
 
     const snapshot =
-      await getDoc(projectRef);
+      await getDoc(
+        projectRef
+      );
 
 
     if (!snapshot.exists()) {
 
       showError(
         "Project not found",
-        "This project does not exist in Firestore."
+        "This project does not exist."
       );
 
       return;
@@ -806,33 +1156,30 @@ async function loadProject(user) {
       snapshot.data();
 
 
-    /* -----------------------------------------------------
-       OWNER CHECK
-    ----------------------------------------------------- */
+    /*
+      SECURITY CHECK IN UI.
 
-    const ownerId =
-      data.clientId ||
-      data.userId ||
-      data.ownerId;
-
+      Firestore Rules are still the
+      real security layer.
+    */
 
     if (
-      ownerId &&
-      ownerId !== user.uid
+      data.clientId &&
+      data.clientId !== user.uid
     ) {
+
+      console.error(
+        "PROJECT OWNER MISMATCH"
+      );
 
       showError(
         "Access denied",
-        "This project does not belong to your account."
+        "This project belongs to another client."
       );
 
       return;
     }
 
-
-    /* -----------------------------------------------------
-       RENDER
-    ----------------------------------------------------- */
 
     await renderProject(
       projectId,
@@ -849,13 +1196,13 @@ async function loadProject(user) {
 
 
     if (
-      error?.code ===
+      error.code ===
       "permission-denied"
     ) {
 
       showError(
-        "Permission denied",
-        "Firestore Rules are blocking access to this project.",
+        "Access denied",
+        "You are not allowed to view this project.",
         error
       );
 
@@ -864,7 +1211,7 @@ async function loadProject(user) {
 
 
     if (
-      error?.code ===
+      error.code ===
       "unauthenticated"
     ) {
 
@@ -885,6 +1232,7 @@ async function loadProject(user) {
     );
 
   }
+
 }
 
 
@@ -930,41 +1278,9 @@ onAuthStateChanged(
     }
 
 
-    await loadProject(user);
+    await loadProject(
+      user
+    );
 
   }
 );
-
-
-/* =========================================================
-   LOGOUT
-========================================================= */
-
-const logoutButton =
-  document.getElementById("logout");
-
-if (logoutButton) {
-
-  logoutButton.addEventListener(
-    "click",
-    async () => {
-
-      try {
-
-        await signOut(auth);
-
-        window.location.href =
-          "../login.html";
-
-      } catch (error) {
-
-        console.error(
-          "Logout failed:",
-          error
-        );
-
-      }
-
-    }
-  );
-}
