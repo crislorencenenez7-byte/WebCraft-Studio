@@ -39,44 +39,61 @@ const db = getFirestore(app);
    ELEMENTS
 ========================================= */
 
-const clientName = document.getElementById("clientName");
-const clientEmail = document.getElementById("clientEmail");
+const clientName =
+  document.getElementById("clientName");
 
-const loadingState = document.getElementById("loadingState");
-const errorState = document.getElementById("errorState");
-const emptyState = document.getElementById("emptyState");
-const projectList = document.getElementById("projectList");
+const clientEmail =
+  document.getElementById("clientEmail");
 
-const logoutButton = document.getElementById("logout");
+const loadingState =
+  document.getElementById("loadingState");
+
+const errorState =
+  document.getElementById("errorState");
+
+const emptyState =
+  document.getElementById("emptyState");
+
+const projectList =
+  document.getElementById("projectList");
+
+const logoutButton =
+  document.getElementById("logout");
 
 
 /* =========================================
    HELPERS
 ========================================= */
 
-function show(el) {
-  if (!el) return;
+function show(element) {
 
-  el.classList.remove("hidden");
-  el.style.display = "";
+  if (!element) return;
+
+  element.classList.remove("hidden");
+  element.style.display = "";
+
 }
 
 
-function hide(el) {
-  if (!el) return;
+function hide(element) {
 
-  el.classList.add("hidden");
-  el.style.display = "none";
+  if (!element) return;
+
+  element.classList.add("hidden");
+  element.style.display = "none";
+
 }
 
 
 function escapeHTML(value) {
+
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+
 }
 
 
@@ -108,6 +125,7 @@ function formatDate(value) {
     return "No date";
 
   }
+
 }
 
 
@@ -131,11 +149,12 @@ function statusClass(status) {
     return "status-pending";
 
   return "status-default";
+
 }
 
 
 /* =========================================
-   USER DISPLAY
+   USER INFO
 ========================================= */
 
 function displayUser(user) {
@@ -207,55 +226,52 @@ function addAdminLink() {
 
 
 /* =========================================
-   CHECK ROLE
+   GET ROLE
 ========================================= */
 
-async function checkRole(user) {
+async function getUserRole(user) {
 
   try {
 
     const userRef =
-      doc(db, "users", user.uid);
+      doc(
+        db,
+        "users",
+        user.uid
+      );
 
-    const snap =
+    const userSnap =
       await getDoc(userRef);
 
-    if (!snap.exists()) {
+    if (!userSnap.exists()) {
 
       console.warn(
         "users/" + user.uid +
         " does not exist."
       );
 
-      return;
+      return "client";
 
     }
 
     const data =
-      snap.data();
+      userSnap.data();
 
     console.log(
-      "USER DOCUMENT:",
-      data
-    );
-
-    console.log(
-      "USER ROLE:",
+      "WebCraft user role:",
       data.role
     );
 
-    if (data.role === "admin") {
-
-      addAdminLink();
-
-    }
+    return data.role || "client";
 
   } catch (error) {
 
     console.error(
-      "ROLE CHECK ERROR:",
+      "ROLE ERROR:",
       error
     );
+
+    return "client";
 
   }
 
@@ -266,79 +282,85 @@ async function checkRole(user) {
    LOAD PROJECTS
 ========================================= */
 
-async function loadProjects(user) {
-
-  hide(errorState);
-  hide(emptyState);
+async function loadProjects(user, role) {
 
   show(loadingState);
+
+  hide(errorState);
+
+  hide(emptyState);
+
 
   if (projectList) {
     projectList.innerHTML = "";
   }
 
 
-  console.log(
-    "=============================="
-  );
-
-  console.log(
-    "WEBCRAFT PROJECT LOAD"
-  );
-
-  console.log(
-    "Firebase UID:",
-    user.uid
-  );
-
-  console.log(
-    "Email:",
-    user.email
-  );
-
-
   try {
 
-    const projectsRef =
-      collection(
-        db,
-        "projects"
-      );
+    let projectsQuery;
 
 
     /*
-      IMPORTANT:
+     * ADMIN
+     *
+     * Admin can load ALL projects.
+     */
 
-      This query does NOT use orderBy().
-      Therefore no composite index is required.
-    */
+    if (role === "admin") {
 
-    const q =
-      query(
-        projectsRef,
-        where(
-          "clientId",
-          "==",
-          user.uid
-        )
+      console.log(
+        "ADMIN MODE: Loading ALL projects"
+      );
+
+      projectsQuery =
+        query(
+          collection(
+            db,
+            "projects"
+          )
+        );
+
+    }
+
+    /*
+     * CLIENT
+     *
+     * Client only loads projects
+     * belonging to their UID.
+     */
+
+    else {
+
+      console.log(
+        "CLIENT MODE: Loading projects for UID:",
+        user.uid
+      );
+
+      projectsQuery =
+        query(
+          collection(
+            db,
+            "projects"
+          ),
+          where(
+            "clientId",
+            "==",
+            user.uid
+          )
+        );
+
+    }
+
+
+    const snapshot =
+      await getDocs(
+        projectsQuery
       );
 
 
     console.log(
-      "Running Firestore query..."
-    );
-
-
-    const snapshot =
-      await getDocs(q);
-
-
-    console.log(
-      "Firestore SUCCESS"
-    );
-
-    console.log(
-      "Projects:",
+      "Firestore project count:",
       snapshot.size
     );
 
@@ -349,10 +371,6 @@ async function loadProjects(user) {
     if (snapshot.empty) {
 
       show(emptyState);
-
-      console.log(
-        "No projects found for this UID."
-      );
 
       return;
 
@@ -365,25 +383,18 @@ async function loadProjects(user) {
     snapshot.forEach(
       (projectDoc) => {
 
-        const data =
-          projectDoc.data();
-
-        console.log(
-          "PROJECT:",
-          projectDoc.id,
-          data
-        );
-
         projects.push({
           id: projectDoc.id,
-          data
+          data: projectDoc.data()
         });
 
       }
     );
 
 
-    /* Sort newest first */
+    /*
+     * NEWEST FIRST
+     */
 
     projects.sort(
       (a, b) => {
@@ -400,133 +411,121 @@ async function loadProjects(user) {
     );
 
 
-    /* Render */
+    /*
+     * RENDER
+     */
 
-    for (const project of projects) {
+    projects.forEach(
+      (project) => {
 
-      const data =
-        project.data;
+        const data =
+          project.data;
 
-      const title =
-        data.title ||
-        data.projectName ||
-        data.name ||
-        "Untitled Website";
+        const title =
+          data.title ||
+          data.projectName ||
+          data.name ||
+          "Untitled Website";
 
-      const description =
-        data.description ||
-        data.requirements ||
-        "Website project";
+        const description =
+          data.description ||
+          data.requirements ||
+          "Website project";
 
-      const status =
-        data.status ||
-        "Pending";
-
-
-      const card =
-        document.createElement("article");
-
-      card.className =
-        "project-card";
+        const status =
+          data.status ||
+          "Pending";
 
 
-      card.innerHTML = `
+        const card =
+          document.createElement(
+            "article"
+          );
 
-        <div class="project-card-top">
+        card.className =
+          "project-card";
 
-          <div>
 
-            <h3>
-              ${escapeHTML(title)}
-            </h3>
+        card.innerHTML = `
 
-            <p class="project-description">
-              ${escapeHTML(description)}
-            </p>
+          <div class="project-card-top">
+
+            <div>
+
+              <h3>
+                ${escapeHTML(title)}
+              </h3>
+
+              <p class="project-description">
+                ${escapeHTML(description)}
+              </p>
+
+            </div>
+
+            <span
+              class="status-badge ${statusClass(status)}">
+
+              ${escapeHTML(status)}
+
+            </span>
 
           </div>
 
-          <span
-            class="status-badge ${statusClass(status)}">
 
-            ${escapeHTML(status)}
+          <div class="project-meta">
 
-          </span>
+            <span>
+              Created:
+              ${escapeHTML(
+                formatDate(data.createdAt)
+              )}
+            </span>
 
-        </div>
-
-
-        <div class="project-meta">
-
-          <span>
-            Created:
-            ${escapeHTML(
-              formatDate(data.createdAt)
-            )}
-          </span>
-
-        </div>
+          </div>
 
 
-        <div class="project-actions">
+          <div class="project-actions">
 
-          <a
-            class="btn"
-            href="project.html?id=${encodeURIComponent(
-              project.id
-            )}">
+            <a
+              class="btn"
+              href="project.html?id=${encodeURIComponent(
+                project.id
+              )}">
 
-            Track Project →
+              Track Project →
 
-          </a>
+            </a>
 
-        </div>
+          </div>
 
-      `;
+        `;
 
 
-      projectList.appendChild(card);
+        projectList.appendChild(
+          card
+        );
 
-    }
+      }
+    );
 
 
   } catch (error) {
 
     console.error(
-      "================================"
-    );
-
-    console.error(
-      "FIRESTORE PROJECT ERROR"
-    );
-
-    console.error(
-      "CODE:",
-      error.code
-    );
-
-    console.error(
-      "MESSAGE:",
-      error.message
-    );
-
-    console.error(
-      "FULL ERROR:",
+      "WEBCRAFT FIRESTORE ERROR:",
       error
-    );
-
-    console.error(
-      "================================"
     );
 
 
     hide(loadingState);
+
     hide(emptyState);
+
     show(errorState);
 
 
     let message =
-      "Unknown Firestore error.";
+      "Unknown Firebase error.";
 
 
     if (
@@ -535,7 +534,7 @@ async function loadProjects(user) {
     ) {
 
       message =
-        "PERMISSION DENIED: Firestore Rules rejected this query.";
+        "Permission denied. Your Firestore Rules rejected the request.";
 
     }
 
@@ -545,7 +544,17 @@ async function loadProjects(user) {
     ) {
 
       message =
-        "FAILED PRECONDITION: Firestore requires an index or configuration is invalid.";
+        "Firestore failed the request. Check your Firebase configuration/index.";
+
+    }
+
+    else if (
+      error.code ===
+      "unauthenticated"
+    ) {
+
+      message =
+        "You are not authenticated with Firebase.";
 
     }
 
@@ -556,16 +565,6 @@ async function loadProjects(user) {
 
       message =
         "Firebase is temporarily unavailable.";
-
-    }
-
-    else if (
-      error.code ===
-      "unauthenticated"
-    ) {
-
-      message =
-        "Firebase Authentication says you are not signed in.";
 
     }
 
@@ -590,7 +589,7 @@ async function loadProjects(user) {
         </p>
 
         <p class="muted">
-          Error code:
+          Firebase error:
           ${escapeHTML(error.code || "unknown")}
         </p>
 
@@ -609,14 +608,17 @@ async function loadProjects(user) {
 
 
     document
-      .getElementById("retryProjects")
+      .getElementById(
+        "retryProjects"
+      )
       ?.addEventListener(
         "click",
         () => {
 
-          if (auth.currentUser) {
-            loadProjects(auth.currentUser);
-          }
+          loadProjects(
+            user,
+            role
+          );
 
         }
       );
@@ -627,7 +629,7 @@ async function loadProjects(user) {
 
 
 /* =========================================
-   AUTH STATE
+   AUTH
 ========================================= */
 
 onAuthStateChanged(
@@ -645,18 +647,60 @@ onAuthStateChanged(
 
 
     console.log(
-      "AUTHENTICATED USER:",
+      "================================"
+    );
+
+    console.log(
+      "WEBCRAFT AUTHENTICATED"
+    );
+
+    console.log(
+      "UID:",
       user.uid
+    );
+
+    console.log(
+      "EMAIL:",
+      user.email
     );
 
 
     displayUser(user);
 
 
-    await checkRole(user);
+    /*
+     * Get role from Firestore.
+     */
+
+    const role =
+      await getUserRole(user);
 
 
-    await loadProjects(user);
+    console.log(
+      "ROLE:",
+      role
+    );
+
+
+    /*
+     * Admin gets Admin Dashboard link.
+     */
+
+    if (role === "admin") {
+
+      addAdminLink();
+
+    }
+
+
+    /*
+     * Load projects.
+     */
+
+    await loadProjects(
+      user,
+      role
+    );
 
   }
 );
@@ -682,7 +726,7 @@ if (logoutButton) {
       } catch (error) {
 
         console.error(
-          "LOGOUT ERROR:",
+          "Logout error:",
           error
         );
 
