@@ -13,6 +13,8 @@ import {
   getFirestore,
   collection,
   addDoc,
+  doc,
+  setDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
@@ -23,22 +25,27 @@ const db = getFirestore(app);
 
 const form = document.querySelector("#requestForm");
 const msg = document.querySelector("#message");
+const designsInput = document.querySelector("#designs");
+const selectedImages = document.querySelector("#selectedImages");
+const selectedPrice = document.querySelector("#selectedPrice");
 
 let currentUser = null;
 
 
-// ===============================
-// AUTH CHECK
-// ===============================
+// ==================================================
+// AUTH
+// ==================================================
 
-onAuthStateChanged(auth, async (user) => {
+onAuthStateChanged(auth, async user => {
 
   if (!user) {
     location.href = "../login.html";
     return;
   }
 
-  await user.reload();
+  try {
+    await user.reload();
+  } catch {}
 
   if (!user.emailVerified) {
     location.href = "../login.html";
@@ -48,365 +55,217 @@ onAuthStateChanged(auth, async (user) => {
   currentUser = user;
 
   if (form.email) {
-    form.email.value = user.email;
+    form.email.value = user.email || "";
     form.email.readOnly = true;
   }
 
-  if (form.name && !form.name.value) {
-    form.name.value = user.displayName || "";
+  if (
+    form.name &&
+    !form.name.value
+  ) {
+    form.name.value =
+      user.displayName || "";
   }
 
 });
 
 
-// ===============================
-// SUBMIT PROJECT
-// ===============================
-
-form.addEventListener("submit", async (e) => {
-
-  e.preventDefault();
-
-  if (!currentUser) {
-    showMessage("Please wait for your account to finish loading.", true);
-    return;
-  }
-
-  const fd = new FormData(form);
-
-  const clientName =
-    String(fd.get("name") || "").trim();
-
-  const clientEmail =
-    currentUser.email;
-
-  const projectName =
-    String(
-      fd.get("website") ||
-      fd.get("projectName") ||
-      ""
-    ).trim();
-
-  const requirements =
-    String(fd.get("requirements") || "").trim();
-
-  const packageName =
-    String(fd.get("package") || "").trim();
-
-  const price =
-    Number(fd.get("price") || getPackagePrice(packageName));
-
-  const designInput =
-    form.querySelector('input[name="designs"]');
-
-  const designFiles =
-    designInput ? [...designInput.files] : [];
-
-
-  // ===============================
-  // VALIDATION
-  // ===============================
-
-  if (!clientName) {
-    showMessage("Please enter your name.", true);
-    return;
-  }
-
-  if (!projectName) {
-    showMessage("Please enter a project name.", true);
-    return;
-  }
-
-  if (!packageName) {
-    showMessage("Please select a package.", true);
-    return;
-  }
-
-  if (!price) {
-    showMessage("Invalid package price.", true);
-    return;
-  }
-
-  if (!designFiles.length) {
-    showMessage("Please upload at least one design image.", true);
-    return;
-  }
-
-
-  // ===============================
-  // BUTTON STATE
-  // ===============================
-
-  const submitButton =
-    form.querySelector('button[type="submit"]');
-
-  const originalText =
-    submitButton ? submitButton.textContent : "";
-
-  if (submitButton) {
-    submitButton.disabled = true;
-    submitButton.textContent = "Submitting...";
-  }
-
-
-  try {
-
-    // ===============================
-    // CREATE FIRESTORE PROJECT
-    // ===============================
-
-    const projectRef = await addDoc(
-      collection(db, "projects"),
-      {
-
-        clientId: currentUser.uid,
-
-        clientName:
-          clientName,
-
-        clientEmail:
-          clientEmail,
-
-        name:
-          projectName,
-
-        websiteName:
-          projectName,
-
-        requirements:
-          requirements,
-
-        package:
-          packageName,
-
-        price:
-          price,
-
-        paymentMethod:
-          "GCash",
-
-        paymentStatus:
-          "pending",
-
-        paymentReference:
-          "",
-
-        paymentProof:
-          "",
-
-        paymentSubmittedAt:
-          null,
-
-        paymentVerifiedAt:
-          null,
-
-        paymentRejectedAt:
-          null,
-
-        status:
-          "Payment Required",
-
-        createdAt:
-          serverTimestamp(),
-
-        updatedAt:
-          serverTimestamp()
-
-      }
-    );
-
-
-    // ===============================
-    // PREPARE DESIGN IMAGES
-    // ===============================
-
-    const attachments = [];
-
-    for (const file of designFiles) {
-
-      // Prevent extremely large uploads
-      if (file.size > 5 * 1024 * 1024) {
-        throw new Error(
-          `Image "${file.name}" is larger than 5MB.`
-        );
-      }
-
-      const base64 =
-        await fileToBase64(file);
-
-      attachments.push({
-
-        filename:
-          file.name,
-
-        content:
-          base64.split(",")[1],
-
-        contentType:
-          file.type || "application/octet-stream"
-
-      });
-
-    }
-
-
-    // ===============================
-    // SEND EMAIL TO ADMIN
-    // ===============================
-
-    const emailResponse =
-      await fetch("/api/send-project.js", {
-
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-
-          projectId:
-            projectRef.id,
-
-          clientName:
-            clientName,
-
-          clientEmail:
-            clientEmail,
-
-          projectName:
-            projectName,
-
-          package:
-            packageName,
-
-          price:
-            price,
-
-          requirements:
-            requirements,
-
-          attachments:
-            attachments
-
-        })
-
-      });
-
-
-    const emailData =
-      await emailResponse.json();
-
-
-    if (!emailResponse.ok) {
-
-      console.error(
-        "Email API error:",
-        emailData
-      );
-
-      throw new Error(
-        emailData?.error?.message ||
-        emailData?.error ||
-        "Project was created, but the admin email could not be sent."
-      );
-
-    }
-
-
-    // ===============================
-    // SUCCESS
-    // ===============================
-
-    showMessage(
-      "Project request submitted successfully! Redirecting to payment..."
-    );
-
-
-    setTimeout(() => {
-
-      location.href =
-        `../payment.html?id=${encodeURIComponent(projectRef.id)}`;
-
-    }, 1000);
-
-
-  } catch (error) {
-
-    console.error(
-      "PROJECT SUBMISSION ERROR:",
-      error
-    );
-
-    showMessage(
-      error.message ||
-      "Something went wrong.",
-      true
-    );
-
-    if (submitButton) {
-      submitButton.disabled = false;
-      submitButton.textContent = originalText;
-    }
-
-  }
-
-});
-
-
-// ===============================
+// ==================================================
 // PACKAGE PRICE
-// ===============================
+// ==================================================
 
-function getPackagePrice(packageName) {
+document
+  .querySelectorAll('input[name="package"]')
+  .forEach(input => {
 
-  const name =
-    packageName.toLowerCase();
+    input.addEventListener("change", () => {
 
-  if (
-    name.includes("html") &&
-    name.includes("javascript")
-  ) {
-    return 200;
+      const price =
+        Number(input.dataset.price || 0);
+
+      selectedPrice.classList.remove("hidden");
+
+      selectedPrice.textContent =
+        `${input.value} — ₱${price.toLocaleString("en-PH")}`;
+
+    });
+
+  });
+
+
+// ==================================================
+// DESIGN FILE SELECTION
+// ==================================================
+
+designsInput.addEventListener("change", () => {
+
+  const files =
+    [...designsInput.files];
+
+  if (files.length > 5) {
+
+    designsInput.value = "";
+
+    selectedImages.textContent =
+      "Maximum of 5 images only.";
+
+    return;
   }
 
-  if (
-    name.includes("html") &&
-    name.includes("css")
-  ) {
-    return 150;
-  }
+  selectedImages.textContent =
+    files.length
+      ? `${files.length} image(s) selected.`
+      : "";
 
-  if (
-    name.includes("html")
-  ) {
-    return 100;
-  }
-
-  return 0;
-}
+});
 
 
-// ===============================
-// FILE → BASE64
-// ===============================
+// ==================================================
+// COMPRESS IMAGE
+// ==================================================
 
-function fileToBase64(file) {
+function compressImage(file) {
 
   return new Promise((resolve, reject) => {
 
     const reader =
       new FileReader();
 
-    reader.onload = () =>
-      resolve(reader.result);
+    reader.onload = event => {
 
-    reader.onerror = () =>
+      const image =
+        new Image();
+
+      image.onload = () => {
+
+        const MAX_WIDTH = 1200;
+
+        let width =
+          image.width;
+
+        let height =
+          image.height;
+
+
+        if (width > MAX_WIDTH) {
+
+          height =
+            Math.round(
+              height *
+              (MAX_WIDTH / width)
+            );
+
+          width =
+            MAX_WIDTH;
+
+        }
+
+
+        const canvas =
+          document.createElement("canvas");
+
+        canvas.width =
+          width;
+
+        canvas.height =
+          height;
+
+
+        const ctx =
+          canvas.getContext("2d");
+
+        ctx.drawImage(
+          image,
+          0,
+          0,
+          width,
+          height
+        );
+
+
+        let quality = 0.65;
+
+        let dataUrl =
+          canvas.toDataURL(
+            "image/jpeg",
+            quality
+          );
+
+
+        while (
+          dataUrl.length > 700000 &&
+          quality > 0.25
+        ) {
+
+          quality -= 0.10;
+
+          dataUrl =
+            canvas.toDataURL(
+              "image/jpeg",
+              quality
+            );
+
+        }
+
+
+        if (dataUrl.length > 900000) {
+
+          reject(
+            new Error(
+              `${file.name} is too large even after compression.`
+            )
+          );
+
+          return;
+        }
+
+
+        resolve({
+
+          name:
+            file.name,
+
+          type:
+            "image/jpeg",
+
+          size:
+            dataUrl.length,
+
+          content:
+            dataUrl
+
+        });
+
+      };
+
+
+      image.onerror = () => {
+
+        reject(
+          new Error(
+            `Unable to read image: ${file.name}`
+          )
+        );
+
+      };
+
+
+      image.src =
+        event.target.result;
+
+    };
+
+
+    reader.onerror = () => {
+
       reject(
         new Error(
-          `Unable to read ${file.name}`
+          `Unable to load image: ${file.name}`
         )
       );
+
+    };
+
 
     reader.readAsDataURL(file);
 
@@ -415,24 +274,487 @@ function fileToBase64(file) {
 }
 
 
-// ===============================
+// ==================================================
+// CONVERT DATA URL TO RESEND ATTACHMENT
+// ==================================================
+
+function dataUrlToAttachment(
+  design
+) {
+
+  const parts =
+    design.content.split(",");
+
+  return {
+
+    filename:
+      design.name || "client-design.jpg",
+
+    content:
+      parts[1],
+
+    contentType:
+      design.type || "image/jpeg"
+
+  };
+
+}
+
+
+// ==================================================
+// SUBMIT PROJECT
+// ==================================================
+
+form.addEventListener(
+  "submit",
+  async event => {
+
+    event.preventDefault();
+
+
+    if (!currentUser) {
+
+      showMessage(
+        "Please wait for your account to finish loading.",
+        true
+      );
+
+      return;
+    }
+
+
+    const packageInput =
+      form.querySelector(
+        'input[name="package"]:checked'
+      );
+
+
+    if (!packageInput) {
+
+      showMessage(
+        "Please choose a package.",
+        true
+      );
+
+      return;
+    }
+
+
+    const files =
+      [...designsInput.files];
+
+
+    if (!files.length) {
+
+      showMessage(
+        "Please upload at least one design image.",
+        true
+      );
+
+      return;
+    }
+
+
+    if (files.length > 5) {
+
+      showMessage(
+        "Maximum of 5 design images.",
+        true
+      );
+
+      return;
+    }
+
+
+    const projectName =
+      String(
+        form.website.value || ""
+      ).trim();
+
+
+    const clientName =
+      String(
+        form.name.value || ""
+      ).trim();
+
+
+    const requirements =
+      String(
+        form.requirements.value || ""
+      ).trim();
+
+
+    const packageName =
+      packageInput.value;
+
+
+    const price =
+      Number(
+        packageInput.dataset.price || 0
+      );
+
+
+    if (!projectName) {
+
+      showMessage(
+        "Please enter a project name.",
+        true
+      );
+
+      return;
+    }
+
+
+    if (!clientName) {
+
+      showMessage(
+        "Please enter your name.",
+        true
+      );
+
+      return;
+    }
+
+
+    const submitButton =
+      form.querySelector(
+        'button[type="submit"]'
+      );
+
+
+    const originalText =
+      submitButton.textContent;
+
+
+    submitButton.disabled =
+      true;
+
+
+    try {
+
+      // --------------------------------------------
+      // CREATE PROJECT
+      // --------------------------------------------
+
+      showMessage(
+        "Creating project...",
+        false
+      );
+
+
+      const projectRef =
+        await addDoc(
+          collection(
+            db,
+            "projects"
+          ),
+          {
+
+            clientId:
+              currentUser.uid,
+
+            name:
+              projectName,
+
+            clientName:
+              clientName,
+
+            clientEmail:
+              currentUser.email,
+
+            requirements:
+              requirements,
+
+            package:
+              packageName,
+
+            price:
+              price,
+
+            paymentMethod:
+              "GCash",
+
+            paymentStatus:
+              "pending",
+
+            paymentReference:
+              "",
+
+            paymentProof:
+              "",
+
+            paymentSubmittedAt:
+              null,
+
+            paymentVerifiedAt:
+              null,
+
+            paymentRejectedAt:
+              null,
+
+            status:
+              "Payment Required",
+
+            createdAt:
+              serverTimestamp(),
+
+            updatedAt:
+              serverTimestamp()
+
+          }
+        );
+
+
+      // --------------------------------------------
+      // PROCESS DESIGNS
+      // --------------------------------------------
+
+      const designs = [];
+      const emailAttachments = [];
+
+
+      for (
+        let i = 0;
+        i < files.length;
+        i++
+      ) {
+
+        const file =
+          files[i];
+
+
+        if (
+          !file.type.startsWith("image/")
+        ) {
+
+          throw new Error(
+            `${file.name} is not a valid image.`
+          );
+
+        }
+
+
+        if (
+          file.size > 10 * 1024 * 1024
+        ) {
+
+          throw new Error(
+            `${file.name} is larger than 10MB.`
+          );
+
+        }
+
+
+        showMessage(
+          `Processing design ${i + 1} of ${files.length}...`,
+          false
+        );
+
+
+        const compressed =
+          await compressImage(file);
+
+
+        designs.push(
+          compressed
+        );
+
+
+        emailAttachments.push(
+          dataUrlToAttachment(
+            compressed
+          )
+        );
+
+
+        // ------------------------------------------
+        // SAVE DESIGN TO FIRESTORE
+        // ------------------------------------------
+
+        await setDoc(
+          doc(
+            db,
+            "projects",
+            projectRef.id,
+            "designs",
+            String(i + 1)
+          ),
+          {
+
+            name:
+              compressed.name,
+
+            type:
+              compressed.type,
+
+            size:
+              compressed.size,
+
+            content:
+              compressed.content,
+
+            createdAt:
+              serverTimestamp()
+
+          }
+        );
+
+      }
+
+
+      // --------------------------------------------
+      // SEND PROJECT EMAIL
+      // --------------------------------------------
+
+      showMessage(
+        "Sending project notification...",
+        false
+      );
+
+
+      const emailResponse =
+        await fetch(
+          "/api/send-project",
+          {
+            method:
+              "POST",
+
+            headers:
+              {
+                "Content-Type":
+                  "application/json"
+              },
+
+            body:
+              JSON.stringify({
+
+                projectId:
+                  projectRef.id,
+
+                clientName:
+                  clientName,
+
+                clientEmail:
+                  currentUser.email,
+
+                projectName:
+                  projectName,
+
+                package:
+                  packageName,
+
+                price:
+                  price,
+
+                requirements:
+                  requirements,
+
+                attachments:
+                  emailAttachments
+
+              })
+
+          }
+        );
+
+
+      let emailData = {};
+
+      try {
+
+        emailData =
+          await emailResponse.json();
+
+      } catch {
+
+        emailData = {};
+
+      }
+
+
+      if (!emailResponse.ok) {
+
+        console.error(
+          "PROJECT EMAIL ERROR:",
+          emailData
+        );
+
+        throw new Error(
+          emailData?.error?.message ||
+          emailData?.error ||
+          "Project was created, but the admin email could not be sent."
+        );
+
+      }
+
+
+      // --------------------------------------------
+      // SUCCESS
+      // --------------------------------------------
+
+      showMessage(
+        "Project submitted successfully! Redirecting to payment...",
+        false
+      );
+
+
+      setTimeout(() => {
+
+        location.href =
+          `payment.html?id=${encodeURIComponent(projectRef.id)}`;
+
+      }, 1000);
+
+    } catch (error) {
+
+      console.error(
+        "PROJECT SUBMISSION ERROR:",
+        error
+      );
+
+
+      showMessage(
+        error.message ||
+        "Something went wrong.",
+        true
+      );
+
+
+      submitButton.disabled =
+        false;
+
+      submitButton.textContent =
+        originalText;
+
+    }
+
+  }
+);
+
+
+// ==================================================
 // MESSAGE
-// ===============================
+// ==================================================
 
 function showMessage(
   text,
   isError = false
 ) {
 
-  if (!msg) return;
+  if (!msg) {
+    return;
+  }
 
-  msg.classList.remove("hidden");
+  msg.classList.remove(
+    "hidden"
+  );
 
   msg.classList.toggle(
     "error",
     isError
   );
 
-  msg.textContent = text;
+  msg.textContent =
+    text;
 
 }
