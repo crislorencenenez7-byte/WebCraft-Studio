@@ -484,19 +484,24 @@ function renderProjects(snapshot) {
   }
 
 
+  if (snapshot.empty) {
+
+    show(emptyState);
+
+    return;
+
+  }
+
+
   const projects = [];
 
 
   snapshot.forEach(
     projectDoc => {
 
-      const data = projectDoc.data();
-      if (String(data.paymentStatus || "").toLowerCase() === "rejected" || String(data.status || "").toLowerCase() === "payment rejected") {
-        return;
-      }
       projects.push({
         id: projectDoc.id,
-        data
+        data: projectDoc.data()
       });
 
     }
@@ -507,6 +512,12 @@ function renderProjects(snapshot) {
    * Sort locally.
    * This avoids Firestore index requirements.
    */
+
+  // Rejected payments are retained for admin/audit but hidden from the client portal.
+  const visibleProjects = projects.filter(p => p.data.status !== "Payment Rejected" && p.data.paymentStatus !== "rejected");
+
+  projects.length = 0;
+  projects.push(...visibleProjects);
 
   projects.sort(
     (a, b) => {
@@ -522,11 +533,6 @@ function renderProjects(snapshot) {
     }
   );
 
-
-  if (projects.length === 0) {
-    show(emptyState);
-    return;
-  }
 
   projects.forEach(
     project => {
