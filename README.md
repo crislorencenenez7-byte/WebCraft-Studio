@@ -26,3 +26,15 @@ Firestore rules should allow users, projects, project files, and client-owned pr
 
 ### Important
 This version does not use Firebase Storage. Design image metadata is stored with the project request, not the image bytes. Add an external image/file host later if you want actual screenshot uploads without upgrading Firebase Storage.
+
+
+## Payment verification flow
+
+Client submits a GCash reference and screenshot from `client/payment.html`. The proof is compressed and stored in the project document so no Firebase Storage is required. Admin verifies payment inside `admin/editor.html`. Accept changes the project to `Coding`; Reject changes it to `Payment Rejected`, hides it from the client portal, and sends a rejection email when Resend is configured.
+
+### Optional Vercel environment variables
+- `RESEND_API_KEY`
+- `ADMIN_EMAIL`
+- `RESEND_FROM_EMAIL` (optional; defaults to Resend test sender)
+
+The Firebase Web App config remains in `js/firebase-config.js`, including the existing public `apiKey`.
