@@ -1,660 +1,548 @@
-import { firebaseConfig } from "./firebase-config.js";
+import { firebaseConfig } from './firebase-config.js';
 
 import {
-  initializeApp,
-  getApps,
-  getApp
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+  initializeApp
+} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js';
 
 import {
   getAuth,
   onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
 
 import {
   getFirestore,
   collection,
   getDocs,
+  query,
+  orderBy,
   doc,
-  getDoc,
   updateDoc,
   serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js';
 
 
-const app = getApps().length
-  ? getApp()
-  : initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
+
 const db = getFirestore(app);
 
 const box =
-  document.getElementById("requests");
+  document.querySelector('#requests');
 
 
-let currentUser = null;
+// --------------------------------------------------
+// AUTH + ADMIN CHECK
+// --------------------------------------------------
 
+onAuthStateChanged(auth, async user => {
 
-/* =========================
-   AUTH + ADMIN CHECK
-========================= */
+  if (!user) {
 
-onAuthStateChanged(
-  auth,
-  async user => {
+    location.href = '../login.html';
 
-    if (!user) {
-
-      location.href =
-        "../login.html";
-
-      return;
-    }
-
-
-    currentUser = user;
-
-
-    try {
-
-      await user.reload();
-
-    } catch {}
-
-
-    if (!user.emailVerified) {
-
-      location.href =
-        "../login.html";
-
-      return;
-    }
-
-
-    try {
-
-      const userRef =
-        doc(
-          db,
-          "users",
-          user.uid
-        );
-
-
-      const userSnapshot =
-        await getDoc(userRef);
-
-
-      if (
-        !userSnapshot.exists() ||
-        userSnapshot.data().role !== "admin"
-      ) {
-
-        alert(
-          "Admin access required."
-        );
-
-        location.href =
-          "../client/dashboard.html";
-
-        return;
-      }
-
-
-      await loadProjects();
-
-    } catch (error) {
-
-      console.error(error);
-
-      box.innerHTML = `
-        <div class="panel notice error">
-          ${escapeHTML(error.message)}
-        </div>
-      `;
-
-    }
+    return;
 
   }
-);
 
-
-/* =========================
-   LOAD PROJECTS
-========================= */
-
-async function loadProjects() {
 
   try {
 
-    const snapshot =
+    const userDoc =
       await getDocs(
-        collection(
-          db,
-          "projects"
+        query(
+          collection(db, 'users')
         )
       );
 
 
-    if (snapshot.empty) {
-
-      box.innerHTML = `
-        <div class="panel">
-
-          <h2>
-            No Projects Yet
-          </h2>
-
-          <p class="muted">
-            Client projects will appear here.
-          </p>
-
-        </div>
-      `;
-
-      return;
-    }
-
-
-    const projects =
-      snapshot.docs.map(
-        item => ({
-          id: item.id,
-          data: item.data()
-        })
+    const mine =
+      userDoc.docs.find(
+        d => d.id === user.uid
       );
 
 
-    projects.sort(
-      (a, b) => {
+    if (
+      !mine ||
+      mine.data().role !== 'admin'
+    ) {
 
-        const aTime =
-          a.data.createdAt?.toMillis?.() || 0;
+      alert('Admin access required.');
 
-        const bTime =
-          b.data.createdAt?.toMillis?.() || 0;
+      location.href =
+        '../client/dashboard.html';
 
-        return bTime - aTime;
+      return;
 
-      }
-    );
-
-
-    box.innerHTML = "";
+    }
 
 
-    for (const project of projects) {
+    load();
 
-      const card =
-        await createProjectCard(
-          project.id,
-          project.data
+  } catch (error) {
+
+    box.innerHTML =
+      `<div class="notice error">
+        ${esc(error.message)}
+      </div>`;
+
+  }
+
+});
+
+
+// --------------------------------------------------
+// LOAD PROJECTS
+// --------------------------------------------------
+
+async function load() {
+
+  try {
+
+    const snap =
+      await getDocs(
+        query(
+          collection(db, 'projects'),
+          orderBy(
+            'createdAt',
+            'desc'
+          )
+        )
+      );
+
+
+    if (snap.empty) {
+
+      box.innerHTML =
+        `<div class="panel">
+          <p class="muted">
+            No project requests yet.
+          </p>
+        </div>`;
+
+      return;
+
+    }
+
+
+    box.innerHTML = '';
+
+
+    for (const projectDoc of snap.docs) {
+
+      const project =
+        projectDoc.data();
+
+      const article =
+        document.createElement('article');
+
+      article.className =
+        'panel';
+
+
+      article.innerHTML = `
+
+        <span class="pill">
+          ${esc(project.status || 'Pending')}
+        </span>
+
+        <h2>
+          ${esc(project.name || 'Untitled')}
+        </h2>
+
+        <p>
+          <strong>Client:</strong>
+          ${esc(project.clientName || '')}
+        </p>
+
+        <p>
+          <strong>Email:</strong>
+          ${esc(project.clientEmail || '')}
+        </p>
+
+        <p>
+          <strong>Package:</strong>
+          ${esc(project.package || '')}
+        </p>
+
+        <p>
+          <strong>Amount:</strong>
+          ₱${Number(project.price || 0).toLocaleString()}
+        </p>
+
+        <p>
+          <strong>Payment:</strong>
+          ${esc(project.paymentStatus || 'pending')}
+        </p>
+
+        <p>
+          <strong>Reference:</strong>
+          ${esc(project.paymentReference || 'None')}
+        </p>
+
+        <p>
+          ${esc(project.requirements || '')}
+        </p>
+
+        <div class="design-area">
+          <h3>Client Design</h3>
+
+          <div class="design-list">
+            Loading designs...
+          </div>
+        </div>
+
+        <div class="admin-actions">
+
+          <button
+            class="btn verify-btn"
+            data-id="${projectDoc.id}"
+          >
+            Verify Payment
+          </button>
+
+          <button
+            class="btn reject-btn"
+            data-id="${projectDoc.id}"
+          >
+            Reject Payment
+          </button>
+
+          <a
+            class="btn"
+            href="editor.html?id=${encodeURIComponent(projectDoc.id)}"
+          >
+            Open Editor →
+          </a>
+
+        </div>
+
+      `;
+
+
+      box.appendChild(article);
+
+
+      const designList =
+        article.querySelector(
+          '.design-list'
         );
 
-      box.appendChild(card);
+
+      await loadDesigns(
+        projectDoc.id,
+        designList
+      );
+
+
+      article
+        .querySelector('.verify-btn')
+        .addEventListener(
+          'click',
+          () =>
+            verifyPayment(
+              projectDoc.id
+            )
+        );
+
+
+      article
+        .querySelector('.reject-btn')
+        .addEventListener(
+          'click',
+          () =>
+            rejectPayment(
+              projectDoc.id
+            )
+        );
 
     }
 
   } catch (error) {
 
-    console.error(
-      "ADMIN LOAD ERROR:",
-      error
-    );
+    console.error(error);
 
-    box.innerHTML = `
-      <div class="panel notice error">
-
-        <strong>
-          Unable to load projects
-        </strong>
-
-        <p>
-          ${escapeHTML(error.message)}
-        </p>
-
-      </div>
-    `;
+    box.innerHTML =
+      `<div class="notice error">
+        ${esc(error.message)}
+      </div>`;
 
   }
 
 }
 
 
-/* =========================
-   PROJECT CARD
-========================= */
+// --------------------------------------------------
+// LOAD DESIGNS
+// --------------------------------------------------
 
-async function createProjectCard(
-  id,
-  project
+async function loadDesigns(
+  projectId,
+  container
 ) {
 
-  const article =
-    document.createElement(
-      "article"
-    );
+  try {
 
-
-  article.className =
-    "panel admin-project";
-
-
-  const status =
-    project.status ||
-    "Payment Required";
-
-
-  const paymentStatus =
-    String(
-      project.paymentStatus ||
-      "pending"
-    ).toLowerCase();
-
-
-  let paymentClass =
-    "pending";
-
-  let paymentText =
-    "⏳ Pending";
-
-
-  if (
-    paymentStatus ===
-    "submitted"
-  ) {
-
-    paymentClass =
-      "pending";
-
-    paymentText =
-      "⏳ Pending Verification";
-
-  }
-
-
-  if (
-    paymentStatus ===
-    "verified"
-  ) {
-
-    paymentClass =
-      "verified";
-
-    paymentText =
-      "✓ Verified";
-
-  }
-
-
-  if (
-    paymentStatus ===
-    "rejected"
-  ) {
-
-    paymentClass =
-      "rejected";
-
-    paymentText =
-      "✕ Rejected";
-
-  }
-
-
-  article.innerHTML = `
-
-    <span class="pill">
-      ${escapeHTML(status)}
-    </span>
-
-    <h2>
-      ${escapeHTML(
-        project.name ||
-        "Untitled Website"
-      )}
-    </h2>
-
-    <p>
-      <strong>Client:</strong>
-      ${escapeHTML(
-        project.clientName ||
-        "Unknown"
-      )}
-    </p>
-
-    <p>
-      <strong>Email:</strong>
-      ${escapeHTML(
-        project.clientEmail ||
-        ""
-      )}
-    </p>
-
-    <p>
-      <strong>Package:</strong>
-      ${escapeHTML(
-        project.package ||
-        "Not specified"
-      )}
-    </p>
-
-    <p>
-      <strong>Amount Due:</strong>
-      ₱${Number(
-        project.price || 0
-      ).toLocaleString("en-PH")}
-    </p>
-
-    <p>
-      <strong>Requirements:</strong><br>
-      ${escapeHTML(
-        project.requirements ||
-        "None"
-      )}
-    </p>
-
-    <div class="payment-section">
-
-      <h3>
-        Payment Verification
-      </h3>
-
-      <p>
-        <strong>Status:</strong>
-        <span class="${paymentClass}">
-          ${paymentText}
-        </span>
-      </p>
-
-      <p>
-        <strong>Reference:</strong>
-        ${escapeHTML(
-          project.paymentReference ||
-          "Not submitted"
-        )}
-      </p>
-
-      <div
-        class="proof-container">
-      </div>
-
-      <div
-        class="admin-actions">
-      </div>
-
-    </div>
-
-    <div class="admin-actions">
-
-      <a
-        class="btn"
-        href="editor.html?id=${encodeURIComponent(id)}">
-
-        Open Editor →
-
-      </a>
-
-    </div>
-
-  `;
-
-
-  const proofContainer =
-    article.querySelector(
-      ".proof-container"
-    );
-
-
-  const actions =
-    article.querySelector(
-      ".admin-actions"
-    );
-
-
-  /* =========================
-     SHOW PAYMENT SCREENSHOT
-  ========================= */
-
-  if (
-    project.paymentProof
-  ) {
-
-    const proof =
-      document.createElement(
-        "div"
+    const designsSnap =
+      await getDocs(
+        collection(
+          db,
+          'projects',
+          projectId,
+          'designs'
+        )
       );
 
 
-    proof.className =
-      "payment-proof";
+    if (designsSnap.empty) {
+
+      container.innerHTML =
+        `<p class="muted">
+          No design images uploaded.
+        </p>`;
+
+      return;
+
+    }
 
 
-    proof.innerHTML = `
-
-      <p>
-        <strong>
-          Payment Screenshot
-        </strong>
-      </p>
-
-      <img
-        src="${escapeHTML(
-          project.paymentProof
-        )}"
-        alt="Client payment screenshot">
-
-    `;
+    const designs =
+      designsSnap.docs
+        .map(d => ({
+          id: d.id,
+          ...d.data()
+        }))
+        .sort(
+          (a, b) =>
+            Number(a.id) -
+            Number(b.id)
+        );
 
 
-    proofContainer.appendChild(
-      proof
-    );
-
-  }
+    container.innerHTML = '';
 
 
-  /* =========================
-     VERIFY / REJECT
-  ========================= */
+    designs.forEach(
+      (design, index) => {
 
-  if (
-    paymentStatus ===
-    "submitted"
-  ) {
+        if (!design.content) {
 
-    const verifyButton =
-      document.createElement(
-        "button"
-      );
-
-
-    verifyButton.className =
-      "btn";
-
-
-    verifyButton.textContent =
-      "✓ Verify Payment";
-
-
-    verifyButton.type =
-      "button";
-
-
-    verifyButton.addEventListener(
-      "click",
-      async () => {
-
-        const confirmed =
-          confirm(
-            "Confirm that you checked the screenshot and the payment amount?"
-          );
-
-
-        if (!confirmed) {
           return;
-        }
-
-
-        verifyButton.disabled =
-          true;
-
-
-        try {
-
-          await updateDoc(
-            doc(
-              db,
-              "projects",
-              id
-            ),
-            {
-
-              paymentStatus:
-                "verified",
-
-              paymentVerifiedAt:
-                serverTimestamp(),
-
-              status:
-                "Coding",
-
-              updatedAt:
-                serverTimestamp()
-
-            }
-          );
-
-
-          await loadProjects();
-
-        } catch (error) {
-
-          alert(
-            error.message
-          );
-
-          verifyButton.disabled =
-            false;
 
         }
+
+
+        const wrapper =
+          document.createElement('div');
+
+        wrapper.className =
+          'design-item';
+
+
+        const image =
+          document.createElement('img');
+
+        image.src =
+          design.content;
+
+        image.alt =
+          design.name ||
+          `Client Design ${index + 1}`;
+
+        image.loading = 'lazy';
+
+        image.style.maxWidth =
+          '100%';
+
+        image.style.display =
+          'block';
+
+
+        const title =
+          document.createElement('p');
+
+        title.textContent =
+          design.name ||
+          `Design ${index + 1}`;
+
+
+        const download =
+          document.createElement('a');
+
+        download.href =
+          design.content;
+
+        download.download =
+          design.name ||
+          `design-${index + 1}.jpg`;
+
+        download.textContent =
+          'Download image';
+
+
+        wrapper.appendChild(title);
+
+        wrapper.appendChild(image);
+
+        wrapper.appendChild(download);
+
+        container.appendChild(wrapper);
 
       }
     );
 
+  } catch (error) {
 
-    const rejectButton =
-      document.createElement(
-        "button"
-      );
+    console.error(error);
 
-
-    rejectButton.className =
-      "btn btn-danger";
-
-
-    rejectButton.textContent =
-      "✕ Reject Payment";
-
-
-    rejectButton.type =
-      "button";
-
-
-    rejectButton.addEventListener(
-      "click",
-      async () => {
-
-        const confirmed =
-          confirm(
-            "Reject this payment submission?"
-          );
-
-
-        if (!confirmed) {
-          return;
-        }
-
-
-        rejectButton.disabled =
-          true;
-
-
-        try {
-
-          await updateDoc(
-            doc(
-              db,
-              "projects",
-              id
-            ),
-            {
-
-              paymentStatus:
-                "rejected",
-
-              paymentRejectedAt:
-                serverTimestamp(),
-
-              status:
-                "Payment Required",
-
-              updatedAt:
-                serverTimestamp()
-
-            }
-          );
-
-
-          await loadProjects();
-
-        } catch (error) {
-
-          alert(
-            error.message
-          );
-
-          rejectButton.disabled =
-            false;
-
-        }
-
-      }
-    );
-
-
-    actions.appendChild(
-      verifyButton
-    );
-
-    actions.appendChild(
-      rejectButton
-    );
+    container.innerHTML =
+      `<p class="notice error">
+        ${esc(error.message)}
+      </p>`;
 
   }
-
-
-  return article;
 
 }
 
 
-/* =========================
-   ESCAPE HTML
-========================= */
+// --------------------------------------------------
+// VERIFY PAYMENT
+// --------------------------------------------------
 
-function escapeHTML(value) {
+async function verifyPayment(
+  projectId
+) {
 
-  return String(value ?? "")
+  if (
+    !confirm(
+      'Verify this payment and start coding?'
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  try {
+
+    await updateDoc(
+      doc(
+        db,
+        'projects',
+        projectId
+      ),
+      {
+
+        paymentStatus:
+          'verified',
+
+        paymentVerifiedAt:
+          serverTimestamp(),
+
+        status:
+          'Coding',
+
+        updatedAt:
+          serverTimestamp()
+
+      }
+    );
+
+
+    alert(
+      'Payment verified. Project is now Coding.'
+    );
+
+
+    load();
+
+  } catch (error) {
+
+    alert(error.message);
+
+  }
+
+}
+
+
+// --------------------------------------------------
+// REJECT PAYMENT
+// --------------------------------------------------
+
+async function rejectPayment(
+  projectId
+) {
+
+  if (
+    !confirm(
+      'Reject this payment proof?'
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  try {
+
+    await updateDoc(
+      doc(
+        db,
+        'projects',
+        projectId
+      ),
+      {
+
+        paymentStatus:
+          'rejected',
+
+        paymentRejectedAt:
+          serverTimestamp(),
+
+        status:
+          'Payment Required',
+
+        updatedAt:
+          serverTimestamp()
+
+      }
+    );
+
+
+    alert(
+      'Payment rejected.'
+    );
+
+
+    load();
+
+  } catch (error) {
+
+    alert(error.message);
+
+  }
+
+}
+
+
+// --------------------------------------------------
+// HTML ESCAPE
+// --------------------------------------------------
+
+function esc(value) {
+
+  return String(value ?? '')
     .replace(
       /[&<>'"]/g,
-      character => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "'": "&#39;",
-        '"': "&quot;"
-      })[character]
+      char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+      }[char])
     );
 
 }
