@@ -1,297 +1,485 @@
-import { firebaseConfig } from "./firebase-config.js";
+import { firebaseConfig } from './firebase-config.js';
 
 import {
-  initializeApp,
-  getApps,
-  getApp
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+  initializeApp
+} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js';
 
 import {
   getAuth,
   onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js';
 
 import {
   getFirestore,
   collection,
   addDoc,
+  doc,
+  setDoc,
   serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+} from 'https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js';
 
 
-const app = getApps().length
-  ? getApp()
-  : initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
+
 const db = getFirestore(app);
 
-const form = document.getElementById("requestForm");
-const message = document.getElementById("message");
-const selectedPackage = document.getElementById("selectedPackage");
+
+const form = document.querySelector('#requestForm');
+
+const msg = document.querySelector('#message');
+
+const designsInput = document.querySelector('#designs');
+
+const selectedImages = document.querySelector('#selectedImages');
+
+const selectedPrice = document.querySelector('#selectedPrice');
+
 
 let currentUser = null;
 
 
-/* =========================
-   PACKAGE SELECTION
-========================= */
-
-const packageInputs =
-  document.querySelectorAll('input[name="package"]');
-
-const packageCards =
-  document.querySelectorAll(".package-card");
-
-
-packageInputs.forEach(input => {
-
-  input.addEventListener("change", () => {
-
-    packageCards.forEach(card => {
-      card.classList.remove("selected");
-    });
-
-    const selectedCard =
-      input.closest(".package-card");
-
-    selectedCard?.classList.add("selected");
-
-    const price =
-      Number(input.dataset.price);
-
-    selectedPackage.style.display = "block";
-
-    selectedPackage.innerHTML = `
-      <strong>${escapeHTML(input.value)}</strong>
-      <br>
-      Amount: <strong>₱${price.toLocaleString("en-PH")}</strong>
-    `;
-
-  });
-
-});
-
-
-/* =========================
-   AUTH
-========================= */
+// --------------------------------------------------
+// AUTH
+// --------------------------------------------------
 
 onAuthStateChanged(auth, async user => {
 
   if (!user) {
-    location.href = "../login.html";
+    location.href = '../login.html';
+    return;
+  }
+
+  await user.reload();
+
+  if (!user.emailVerified) {
+    location.href = '../login.html';
     return;
   }
 
   currentUser = user;
 
-  try {
-    await user.reload();
-  } catch (error) {
-    console.error(error);
-  }
+  form.email.value = user.email;
 
-  if (!user.emailVerified) {
-    location.href = "../login.html";
-    return;
-  }
-
-  form.email.value = user.email || "";
   form.email.readOnly = true;
 
   if (!form.name.value) {
-    form.name.value =
-      user.displayName ||
-      user.email?.split("@")[0] ||
-      "";
+    form.name.value = user.displayName || '';
   }
 
 });
 
 
-/* =========================
-   SUBMIT PROJECT
-========================= */
+// --------------------------------------------------
+// PACKAGE PRICE DISPLAY
+// --------------------------------------------------
 
-form.addEventListener("submit", async event => {
+document
+  .querySelectorAll('input[name="package"]')
+  .forEach(input => {
+
+    input.addEventListener('change', () => {
+
+      const price = Number(input.dataset.price);
+
+      selectedPrice.classList.remove('hidden');
+
+      selectedPrice.textContent =
+        `${input.value} — ₱${price.toLocaleString()}`;
+
+    });
+
+  });
+
+
+// --------------------------------------------------
+// IMAGE SELECTION PREVIEW
+// --------------------------------------------------
+
+designsInput.addEventListener('change', () => {
+
+  const files = [...designsInput.files];
+
+  if (files.length > 5) {
+
+    designsInput.value = '';
+
+    selectedImages.textContent =
+      'Maximum of 5 images only.';
+
+    return;
+
+  }
+
+  selectedImages.textContent =
+    files.length
+      ? `${files.length} image(s) selected.`
+      : '';
+
+});
+
+
+// --------------------------------------------------
+// COMPRESS IMAGE
+// --------------------------------------------------
+
+function compressImage(file) {
+
+  return new Promise((resolve, reject) => {
+
+    const reader = new FileReader();
+
+    reader.onload = event => {
+
+      const image = new Image();
+
+      image.onload = () => {
+
+        const MAX_WIDTH = 1200;
+
+        let width = image.width;
+
+        let height = image.height;
+
+
+        if (width > MAX_WIDTH) {
+
+          height =
+            Math.round(
+              height * (MAX_WIDTH / width)
+            );
+
+          width = MAX_WIDTH;
+
+        }
+
+
+        const canvas = document.createElement('canvas');
+
+        canvas.width = width;
+
+        canvas.height = height;
+
+
+        const ctx = canvas.getContext('2d');
+
+        ctx.drawImage(
+          image,
+          0,
+          0,
+          width,
+          height
+        );
+
+
+        let quality = 0.65;
+
+        let dataUrl =
+          canvas.toDataURL(
+            'image/jpeg',
+            quality
+          );
+
+
+        /*
+          Firestore documents have a size limit.
+
+          Keep the image reasonably small.
+        */
+
+        while (
+          dataUrl.length > 700000 &&
+          quality > 0.25
+        ) {
+
+          quality -= 0.10;
+
+          dataUrl =
+            canvas.toDataURL(
+              'image/jpeg',
+              quality
+            );
+
+        }
+
+
+        if (dataUrl.length > 900000) {
+
+          reject(
+            new Error(
+              `${file.name} is too large even after compression.`
+            )
+          );
+
+          return;
+
+        }
+
+
+        resolve({
+
+          name: file.name,
+
+          type: 'image/jpeg',
+
+          size: dataUrl.length,
+
+          content: dataUrl
+
+        });
+
+      };
+
+
+      image.onerror = () => {
+
+        reject(
+          new Error(
+            `Unable to read image: ${file.name}`
+          )
+        );
+
+      };
+
+
+      image.src = event.target.result;
+
+    };
+
+
+    reader.onerror = () => {
+
+      reject(
+        new Error(
+          `Unable to load image: ${file.name}`
+        )
+      );
+
+    };
+
+
+    reader.readAsDataURL(file);
+
+  });
+
+}
+
+
+// --------------------------------------------------
+// SUBMIT PROJECT
+// --------------------------------------------------
+
+form.addEventListener('submit', async event => {
 
   event.preventDefault();
 
+
   if (!currentUser) {
-    showMessage("Please log in first.", true);
+
+    msg.className = 'notice error';
+
+    msg.textContent =
+      'Please log in first.';
+
     return;
+
   }
 
-  const selected =
-    document.querySelector(
+
+  const packageInput =
+    form.querySelector(
       'input[name="package"]:checked'
     );
 
-  if (!selected) {
-    showMessage(
-      "Please choose a website package.",
-      true
-    );
+
+  if (!packageInput) {
+
+    msg.className = 'notice error';
+
+    msg.textContent =
+      'Please choose a package.';
+
     return;
+
   }
+
 
   const files =
-    [...form.elements.designs.files];
+    [...designsInput.files];
+
 
   if (!files.length) {
-    showMessage(
-      "Please upload at least one design image.",
-      true
-    );
+
+    msg.className = 'notice error';
+
+    msg.textContent =
+      'Please upload at least one design image.';
+
     return;
+
   }
 
 
-  const packageName =
-    selected.value;
+  if (files.length > 5) {
 
-  const price =
-    Number(selected.dataset.price);
+    msg.className = 'notice error';
+
+    msg.textContent =
+      'Maximum of 5 design images.';
+
+    return;
+
+  }
 
 
   const projectName =
-    form.elements.website.value.trim();
-
-  const requirements =
-    form.elements.requirements.value.trim();
+    form.website.value.trim();
 
   const clientName =
-    form.elements.name.value.trim();
+    form.name.value.trim();
 
+  const requirements =
+    form.requirements.value.trim();
 
-  const submitButton =
-    form.querySelector("button[type='submit']");
+  const packageName =
+    packageInput.value;
 
-  submitButton.disabled = true;
-  submitButton.textContent =
-    "Creating Project...";
+  const price =
+    Number(packageInput.dataset.price);
 
 
   try {
 
-    const projectRef =
-      await addDoc(
-        collection(db, "projects"),
+    form.querySelector('button[type="submit"]').disabled = true;
+
+    msg.className = 'notice';
+
+    msg.textContent =
+      'Uploading and compressing your design...';
+
+
+    // ----------------------------------------------
+    // CREATE PROJECT
+    // ----------------------------------------------
+
+    const projectRef = await addDoc(
+      collection(db, 'projects'),
+      {
+
+        clientId: currentUser.uid,
+
+        name: projectName,
+
+        clientName: clientName,
+
+        clientEmail: currentUser.email,
+
+        requirements: requirements,
+
+        package: packageName,
+
+        price: price,
+
+        paymentMethod: 'GCash',
+
+        paymentStatus: 'pending',
+
+        paymentReference: '',
+
+        paymentProof: '',
+
+        paymentSubmittedAt: null,
+
+        paymentVerifiedAt: null,
+
+        paymentRejectedAt: null,
+
+        status: 'Payment Required',
+
+        createdAt: serverTimestamp(),
+
+        updatedAt: serverTimestamp()
+
+      }
+    );
+
+
+    // ----------------------------------------------
+    // COMPRESS + SAVE DESIGN IMAGES
+    // ----------------------------------------------
+
+    for (
+      let i = 0;
+      i < files.length;
+      i++
+    ) {
+
+      const file = files[i];
+
+
+      msg.textContent =
+        `Processing design ${i + 1} of ${files.length}...`;
+
+
+      const compressed =
+        await compressImage(file);
+
+
+      const designRef =
+        doc(
+          db,
+          'projects',
+          projectRef.id,
+          'designs',
+          String(i + 1)
+        );
+
+
+      await setDoc(
+        designRef,
         {
 
-          clientId: currentUser.uid,
+          name: compressed.name,
 
-          name: projectName,
+          type: compressed.type,
 
-          clientName: clientName,
+          size: compressed.size,
 
-          clientEmail: currentUser.email,
+          content: compressed.content,
 
-          requirements: requirements,
-
-          package: packageName,
-
-          price: price,
-
-          paymentMethod: "GCash",
-
-          paymentStatus: "pending",
-
-          paymentReference: "",
-
-          paymentProof: "",
-
-          paymentSubmittedAt: null,
-
-          paymentVerifiedAt: null,
-
-          paymentRejectedAt: null,
-
-          status: "Payment Required",
-
-          designs: files.map(file => ({
-            name: file.name,
-            type: file.type,
-            size: file.size
-          })),
-
-          createdAt: serverTimestamp(),
-
-          updatedAt: serverTimestamp()
+          createdAt: serverTimestamp()
 
         }
       );
 
-
-    /* =========================
-       SAVE DESIGN METADATA
-       ========================= */
-
-    message.classList.remove("hidden");
-
-    message.classList.remove("error");
-
-    message.textContent =
-      "Project created. Redirecting to payment...";
+    }
 
 
-    setTimeout(() => {
+    // ----------------------------------------------
+    // SUCCESS
+    // ----------------------------------------------
 
-      location.href =
-        `payment.html?id=${encodeURIComponent(projectRef.id)}`;
-
-    }, 500);
-
+    location.href =
+      `payment.html?id=${encodeURIComponent(projectRef.id)}`;
 
   } catch (error) {
 
-    console.error(
-      "PROJECT CREATE ERROR:",
-      error
-    );
+    console.error(error);
 
-    showMessage(
+
+    msg.className =
+      'notice error';
+
+    msg.textContent =
       error.message ||
-      "Unable to create project.",
-      true
-    );
+      'Something went wrong.';
 
-    submitButton.disabled = false;
 
-    submitButton.textContent =
-      "Continue to Payment →";
+    form.querySelector(
+      'button[type="submit"]'
+    ).disabled = false;
 
   }
 
 });
-
-
-/* =========================
-   HELPERS
-========================= */
-
-function showMessage(text, error = false) {
-
-  message.classList.remove("hidden");
-
-  message.textContent = text;
-
-  message.classList.toggle(
-    "error",
-    error
-  );
-
-}
-
-
-function escapeHTML(value) {
-
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-
-}
