@@ -1,1 +1,296 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Start a Project — WebCraft Studio</title><link rel="stylesheet" href="../css/style.css"><style>.builder{display:grid;gap:14px}.tree-builder{border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:16px;background:rgba(255,255,255,.03)}.tree-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,1fr) minmax(140px,1fr) auto;gap:10px;align-items:start;margin:8px 0;padding:10px;border-radius:10px;background:rgba(255,255,255,.025)}.tree-row input,.tree-row textarea{width:100%;box-sizing:border-box}.tree-row textarea{min-height:58px;resize:vertical}.tree-actions{display:flex;gap:8px;flex-wrap:wrap}.mini-btn{border:1px solid rgba(255,255,255,.16);background:transparent;color:inherit;padding:8px 10px;border-radius:8px;cursor:pointer}.hint{font-size:13px}.danger{border-color:rgba(255,80,80,.4)}@media(max-width:700px){.tree-row{grid-template-columns:1fr}}</style></head><body><header class="topbar"><a class="logo" href="../index.html"><span>W</span> WebCraft Studio</a><nav><a href="../index.html">Home</a><a class="nav-btn" href="project.html">My project</a></nav></header><main class="form-page"><section class="form-intro"><div class="pill">NEW PROJECT</div><h1>Show us what<br><em>you have in mind.</em></h1><p>Choose your package, upload your design, then build the exact folder/file structure you want us to code.</p></section><section class="panel"><form id="requestForm"><label>Name<input name="name" id="clientName" placeholder="Your name" required></label><label>Email<input name="email" id="clientEmail" type="email" readonly required></label><label>Project name<input name="website" id="projectName" placeholder="e.g. My Business Website" required></label><label>Choose a package</label><div class="package-grid"><label class="package-card"><input type="radio" name="package" value="HTML ONLY" data-price="100" required><strong>HTML ONLY</strong> — ₱100<br><small>HTML files only</small></label><label class="package-card"><input type="radio" name="package" value="HTML + CSS" data-price="150"><strong>HTML + CSS</strong> — ₱150<br><small>HTML + CSS files</small></label><label class="package-card"><input type="radio" name="package" value="HTML + CSS + JAVASCRIPT" data-price="200"><strong>HTML + CSS + JAVASCRIPT</strong> — ₱200<br><small>HTML + CSS + JavaScript files</small></label></div><div id="selectedPrice" class="notice">Select a package</div><label>Overall project description<textarea name="requirements" id="requirements" rows="5" placeholder="Describe the website as a whole..."></textarea></label><div class="tree-builder"><div class="tree-actions"><div><strong>Folder & File Structure</strong><div class="muted hint">Add folders/files. Every file gets its own exact coding instructions.</div></div><button type="button" class="mini-btn" id="addFolder">+ Folder</button><button type="button" class="mini-btn" id="addFile">+ File</button></div><div id="tree"></div></div><label class="upload">Design screenshot(s)<input name="designs" id="designs" type="file" accept="image/png,image/jpeg,image/webp" multiple required><span>Choose up to 5 images. Images are automatically compressed.</span></label><div id="selectedImages" class="muted"></div><button class="btn" type="submit">Continue to Payment →</button></form><div id="message" class="notice hidden"></div></section></main><script type="module" src="../js/request.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Start a Project — WebCraft Studio</title>
+  <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    .package-grid {
+      display: grid;
+      gap: 12px;
+      margin: 10px 0 24px;
+    }
+
+    .package-option {
+      display: block;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 14px;
+      cursor: pointer;
+    }
+
+    .package-option input {
+      margin-right: 8px;
+    }
+
+    .package-price {
+      float: right;
+      font-weight: 700;
+    }
+
+    .structure-box {
+      border: 1px solid #ddd;
+      border-radius: 14px;
+      padding: 15px;
+      margin-top: 10px;
+    }
+
+    .tree-item {
+      margin: 8px 0;
+    }
+
+    .tree-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tree-row input {
+      flex: 1;
+      min-width: 130px;
+    }
+
+    .tree-children {
+      margin-left: 22px;
+      padding-left: 14px;
+      border-left: 2px solid #ddd;
+    }
+
+    .structure-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .mini-btn {
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 8px;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+
+    .remove-btn {
+      color: #b00020;
+    }
+
+    .description {
+      margin-top: 7px;
+      width: 100%;
+      min-height: 70px;
+    }
+
+    .price-display {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 15px 0;
+    }
+
+    .selected-images {
+      margin-top: 8px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header class="topbar">
+  <a class="logo" href="../index.html">
+    <span>W</span> WebCraft Studio
+  </a>
+
+  <nav>
+    <a href="../index.html">Home</a>
+    <a class="nav-btn" href="project.html">My project</a>
+  </nav>
+</header>
+
+<main class="form-page">
+
+  <section class="form-intro">
+    <div class="pill">NEW PROJECT</div>
+
+    <h1>
+      Show us what<br>
+      <em>you have in mind.</em>
+    </h1>
+
+    <p>
+      Tell us exactly what you want built. You can create your own
+      folders, files and instructions.
+    </p>
+  </section>
+
+  <section class="panel">
+
+    <form id="requestForm">
+
+      <label>
+        Name
+        <input
+          name="name"
+          placeholder="Your name"
+          required
+        >
+      </label>
+
+      <label>
+        Email
+        <input
+          name="email"
+          type="email"
+          placeholder="you@example.com"
+          required
+        >
+      </label>
+
+      <label>
+        Project name
+        <input
+          name="website"
+          placeholder="e.g. My Business Website"
+          required
+        >
+      </label>
+
+      <label>
+        Package
+      </label>
+
+      <div class="package-grid">
+
+        <label class="package-option">
+          <input
+            type="radio"
+            name="package"
+            value="HTML ONLY"
+            data-price="100"
+          >
+          HTML ONLY
+          <span class="package-price">₱100</span>
+        </label>
+
+        <label class="package-option">
+          <input
+            type="radio"
+            name="package"
+            value="HTML + CSS"
+            data-price="150"
+          >
+          HTML + CSS
+          <span class="package-price">₱150</span>
+        </label>
+
+        <label class="package-option">
+          <input
+            type="radio"
+            name="package"
+            value="HTML + CSS + JAVASCRIPT"
+            data-price="200"
+          >
+          HTML + CSS + JAVASCRIPT
+          <span class="package-price">₱200</span>
+        </label>
+
+      </div>
+
+      <div id="selectedPrice" class="price-display">
+        Select a package.
+      </div>
+
+      <label>
+        What should the whole website do?
+        <textarea
+          name="requirements"
+          rows="6"
+          placeholder="Describe the overall website, features, pages, colors, buttons, behavior, etc."
+          required
+        ></textarea>
+      </label>
+
+      <label>
+        Client Design Screenshot(s)
+        <input
+          id="designs"
+          name="designs"
+          type="file"
+          accept="image/*"
+          multiple
+          required
+        >
+        <span>
+          Upload up to 5 images.
+        </span>
+      </label>
+
+      <div
+        id="selectedImages"
+        class="selected-images"
+      ></div>
+
+      <hr>
+
+      <h2>Website Folder & File Structure</h2>
+
+      <p class="muted">
+        Create your own folders and files. You can put folders inside
+        folders and files inside any folder.
+      </p>
+
+      <div
+        id="structure"
+        class="structure-box"
+      ></div>
+
+      <div class="structure-actions">
+
+        <button
+          type="button"
+          class="mini-btn"
+          id="addRootFolder"
+        >
+          + Folder
+        </button>
+
+        <button
+          type="button"
+          class="mini-btn"
+          id="addRootFile"
+        >
+          + File
+        </button>
+
+      </div>
+
+      <br>
+
+      <button
+        class="btn"
+        type="submit"
+      >
+        Send project request →
+      </button>
+
+    </form>
+
+    <div
+      id="message"
+      class="notice hidden"
+    ></div>
+
+  </section>
+
+</main>
+
+<script
+  type="module"
+  src="../js/request.js"
+></script>
+
+</body>
+</html>
