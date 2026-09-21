@@ -1155,6 +1155,11 @@ async function loadProject(
     const data =
       snapshot.data();
 
+    if (String(data.paymentStatus || "").toLowerCase() === "rejected" || String(data.status || "").toLowerCase() === "payment rejected") {
+      showError("Project unavailable", "This project was rejected and is no longer available in the client portal.");
+      return;
+    }
+
 
     /*
       SECURITY CHECK IN UI.

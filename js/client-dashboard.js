@@ -484,24 +484,19 @@ function renderProjects(snapshot) {
   }
 
 
-  if (snapshot.empty) {
-
-    show(emptyState);
-
-    return;
-
-  }
-
-
   const projects = [];
 
 
   snapshot.forEach(
     projectDoc => {
 
+      const data = projectDoc.data();
+      if (String(data.paymentStatus || "").toLowerCase() === "rejected" || String(data.status || "").toLowerCase() === "payment rejected") {
+        return;
+      }
       projects.push({
         id: projectDoc.id,
-        data: projectDoc.data()
+        data
       });
 
     }
@@ -527,6 +522,11 @@ function renderProjects(snapshot) {
     }
   );
 
+
+  if (projects.length === 0) {
+    show(emptyState);
+    return;
+  }
 
   projects.forEach(
     project => {
