@@ -1,5 +1,30 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Code Editor — WebCraft Studio</title><link rel="stylesheet" href="../css/style.css"></head>
-<body><header class="topbar"><a class="logo" href="../index.html"><span>W</span> WebCraft Studio <small>ADMIN</small></a><nav><a href="dashboard.html">Dashboard</a></nav></header>
-<main class="page"><section class="editor-shell"><div class="editor-head"><div><span>CODE WORKSPACE</span><h1>Project editor</h1></div><button class="btn" id="deliver">Mark completed</button></div>
-<div class="editor-grid"><aside><button class="file active" data-file="index.html">⌁ index.html</button><button class="file" data-file="style.css"># style.css</button><button class="file" data-file="script.js">{} script.js</button><button class="file" data-file="about.html">⌁ about.html</button><button class="file" data-file="contact.html">⌁ contact.html</button></aside><section><div class="editor-toolbar"><input id="fileName" value="index.html"><button id="preview">Preview ↗</button><button id="saveCode">Save</button></div><textarea id="code" spellcheck="false" placeholder="Paste your code here..."></textarea></section></div><div id="editorMessage" class="notice hidden"></div></section></main><script type="module" src="../js/editor.js"></script></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Code Editor — WebCraft Studio</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+.payment-review{margin-bottom:24px}.payment-proof{max-width:100%;max-height:520px;display:block;border-radius:14px;border:1px solid rgba(255,255,255,.12);margin-top:12px}.payment-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.payment-actions .reject{background:#7f1d1d}.payment-actions button{border:0;cursor:pointer}.ref-box{padding:12px;border-radius:10px;background:rgba(255,255,255,.05);word-break:break-all}
+</style>
+</head>
+<body>
+<header class="topbar"><a class="logo" href="../index.html"><span>W</span> WebCraft Studio <small>ADMIN</small></a><nav><a href="dashboard.html">Dashboard</a></nav></header>
+<main class="page">
+<section class="editor-shell">
+<div class="editor-head"><div><span>CODE WORKSPACE</span><h1>Project editor</h1></div><button class="btn" id="deliver">Mark completed</button></div>
+
+<section id="paymentReview" class="panel payment-review">
+  <span class="section-label">PAYMENT VERIFICATION</span>
+  <h2 id="paymentTitle">Loading payment...</h2>
+  <p id="paymentStatus" class="muted">Checking payment status.</p>
+  <div id="paymentDetails"></div>
+  <div id="paymentActions" class="payment-actions"></div>
+</section>
+
+<div class="editor-grid"><aside><button class="file active" data-file="index.html">⌁ index.html</button><button class="file" data-file="style.css"># style.css</button><button class="file" data-file="script.js">{} script.js</button><button class="file" data-file="about.html">⌁ about.html</button><button class="file" data-file="contact.html">⌁ contact.html</button></aside><section><div class="editor-toolbar"><input id="fileName" value="index.html"><button id="preview">Preview ↗</button><button id="saveCode">Save</button></div><textarea id="code" spellcheck="false" placeholder="Paste your code here..."></textarea></section></div>
+<div id="editorMessage" class="notice hidden"></div>
+</section></main>
+<script type="module" src="../js/editor.js"></script>
+</body></html>
